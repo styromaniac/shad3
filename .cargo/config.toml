@@ -1,7 +1,7 @@
 [target.aarch64-linux-android]
-linker = "aarch64-linux-android-clang"
-ar = "aarch64-linux-android-ar"
-rustflags = ["-C", "link-arg=-nostdlib++"]
+linker = "aarch64-linux-android23-clang"
+ar = "llvm-ar"
+rustflags = ["-C", "link-arg=-nostdlib++", "-C", "link-arg=-lunwind"]
 
 [target.armv7-linux-androideabi]
 linker = "armv7a-linux-androideabi-clang"
