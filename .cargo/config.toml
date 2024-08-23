@@ -1,2 +1,19 @@
 [target.aarch64-linux-android]
+linker = "aarch64-linux-android-clang"
+ar = "aarch64-linux-android-ar"
+rustflags = ["-C", "link-arg=-nostdlib++"]
+
+[target.armv7-linux-androideabi]
+linker = "armv7a-linux-androideabi-clang"
+ar = "arm-linux-androideabi-ar"
+rustflags = ["-C", "link-arg=-nostdlib++"]
+
+[target.i686-linux-android]
+linker = "i686-linux-android-clang"
+ar = "i686-linux-android-ar"
+rustflags = ["-C", "link-arg=-nostdlib++"]
+
+[target.x86_64-linux-android]
+linker = "x86_64-linux-android-clang"
+ar = "x86_64-linux-android-ar"
 rustflags = ["-C", "link-arg=-nostdlib++"]
