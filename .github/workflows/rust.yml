@@ -9,29 +9,78 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
-
     strategy:
       matrix:
-        target: 
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-          - x86_64-pc-windows-gnu
-          - aarch64-pc-windows-msvc
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        target:
+          # Linux Targets
+          - x86_64-unknown-linux-gnu          # 64-bit Linux (x86_64)
+          - aarch64-unknown-linux-gnu         # 64-bit Linux (ARM)
+          - x86_64-unknown-linux-musl         # 64-bit Linux with musl libc (x86_64)
+          - aarch64-unknown-linux-musl        # 64-bit Linux with musl libc (ARM)
+          - x86_64-unknown-linux-gnux32       # 64-bit Linux with x32 ABI
+          - sparcv9-unknown-linux-gnu         # 64-bit Linux (SPARC V9)
+          - mips64-unknown-linux-gnuabi64     # 64-bit Linux (MIPS)
+          - mips64el-unknown-linux-gnuabi64   # 64-bit Linux (MIPS Little Endian)
+          - s390x-unknown-linux-gnu           # 64-bit Linux (IBM Z)
+          - riscv64gc-unknown-linux-gnu       # 64-bit Linux (RISC-V)
+          # Windows Targets
+          - x86_64-pc-windows-gnu             # 64-bit Windows (x86_64)
+          - aarch64-pc-windows-msvc           # 64-bit Windows (ARM)
+          - x86_64-pc-windows-msvc            # 64-bit Windows with MSVC (x86_64)
+          # macOS and iOS Targets
+          - x86_64-apple-darwin               # 64-bit macOS (x86_64)
+          - aarch64-apple-darwin              # 64-bit macOS (ARM, Apple Silicon)
+          - aarch64-apple-ios                 # 64-bit iOS (ARM)
+          - x86_64-apple-ios                  # 64-bit iOS Simulator (x86_64)
+          # Unix-like Targets
+          - x86_64-unknown-freebsd            # 64-bit FreeBSD
+          - aarch64-unknown-freebsd           # 64-bit FreeBSD (ARM)
+          - x86_64-unknown-netbsd             # 64-bit NetBSD
+          - aarch64-unknown-netbsd            # 64-bit NetBSD (ARM)
+          - x86_64-unknown-openbsd            # 64-bit OpenBSD
+          - aarch64-unknown-openbsd           # 64-bit OpenBSD (ARM)
+          - x86_64-unknown-dragonfly          # 64-bit DragonFlyBSD
+          # Solaris
+          - x86_64-sun-solaris                # 64-bit Solaris (x86_64)
+          # Android Targets
+          - aarch64-linux-android             # 64-bit Android (ARM)
+          - x86_64-linux-android              # 64-bit Android (x86_64)
+          # WASM (WebAssembly)
+          - wasm32-wasi                       # WebAssembly with WASI
+          # More Exotic and Less Common Targets
+          - powerpc64-unknown-linux-gnu       # 64-bit Linux (PowerPC)
+          - powerpc64le-unknown-linux-gnu     # 64-bit Linux (PowerPC Little Endian)
+          - riscv64gc-unknown-linux-gnu       # 64-bit Linux (RISC-V)
+          - sparcv9-sun-solaris               # 64-bit Solaris (SPARC V9)
+          - x86_64-unknown-haiku              # 64-bit Haiku OS (BeOS)
+          - x86_64-unknown-redox              # 64-bit Redox OS
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        target: ${{ matrix.target }}
+    - name: Install Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev gcc-multilib
 
-    - name: Build
-      run: cargo build --release --target ${{ matrix.target }}
+    - name: Install iOS Targets
+      if: matrix.os == 'macos-latest'
+      run: |
+        rustup target add aarch64-apple-ios
+        rustup target add x86_64-apple-ios
+
+    - name: Install Cross (for cross-compiling)
+      run: cargo install cross
+
+    - name: Build with Cross
+      run: |
+        if [ "${{ matrix.os }}" = "macos-latest" ] || [ "${{ matrix.os }}" = "windows-latest" ]; then
+          cargo build --release --target ${{ matrix.target }}
+        else
+          cross build --release --target ${{ matrix.target }}
+        fi
 
     - name: Upload Binaries
       uses: actions/upload-artifact@v2
