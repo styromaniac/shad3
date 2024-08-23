@@ -17,6 +17,9 @@ use std::time::{Duration, Instant};
 const CHECKSUMS_DIR: &str = "checksums";
 const OUTPUT_FILE: &str = "checksums/all_checksums.txt";
 
+type DownloadResult = Result<Option<(String, Vec<u8>)>>;
+type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -111,7 +114,7 @@ async fn download_files(base_url: &str) -> Result<String> {
         }
     });
 
-    let download_results: Vec<Result<Option<(String, Vec<u8>)>>> = join_all(download_futures).await;
+    let download_results: Vec<DownloadResult> = join_all(download_futures).await;
     let mut downloaded_files: Vec<(String, Vec<u8>)> = download_results
         .into_iter()
         .filter_map(|r| r.ok().flatten())
@@ -143,10 +146,7 @@ fn extract_number(filename: &str) -> Option<u32> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
-fn process_file_parallel(
-    filename: &str,
-    expect: Option<&str>,
-) -> Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)> {
+fn process_file_parallel(filename: &str, expect: Option<&str>) -> ProcessResult {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
     let total_lines = reader.lines().count();
