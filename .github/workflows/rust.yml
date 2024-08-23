@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Trigger on any file change
+  workflow_dispatch:
 
 jobs:
   build:
@@ -12,54 +14,54 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        target:
+        target: 
           # Linux Targets
-          - x86_64-unknown-linux-gnu          # 64-bit Linux (x86_64)
-          - aarch64-unknown-linux-gnu         # 64-bit Linux (ARM)
-          - x86_64-unknown-linux-musl         # 64-bit Linux with musl libc (x86_64)
-          - aarch64-unknown-linux-musl        # 64-bit Linux with musl libc (ARM)
-          - x86_64-unknown-linux-gnux32       # 64-bit Linux with x32 ABI
-          - sparcv9-unknown-linux-gnu         # 64-bit Linux (SPARC V9)
-          - mips64-unknown-linux-gnuabi64     # 64-bit Linux (MIPS)
-          - mips64el-unknown-linux-gnuabi64   # 64-bit Linux (MIPS Little Endian)
-          - s390x-unknown-linux-gnu           # 64-bit Linux (IBM Z)
-          - riscv64gc-unknown-linux-gnu       # 64-bit Linux (RISC-V)
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-gnux32
+          - sparcv9-unknown-linux-gnu
+          - mips64-unknown-linux-gnuabi64
+          - mips64el-unknown-linux-gnuabi64
+          - s390x-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
           # Windows Targets
-          - x86_64-pc-windows-gnu             # 64-bit Windows (x86_64)
-          - aarch64-pc-windows-msvc           # 64-bit Windows (ARM)
-          - x86_64-pc-windows-msvc            # 64-bit Windows with MSVC (x86_64)
+          - x86_64-pc-windows-gnu
+          - aarch64-pc-windows-msvc
+          - x86_64-pc-windows-msvc
           # macOS and iOS Targets
-          - x86_64-apple-darwin               # 64-bit macOS (x86_64)
-          - aarch64-apple-darwin              # 64-bit macOS (ARM, Apple Silicon)
-          - aarch64-apple-ios                 # 64-bit iOS (ARM)
-          - x86_64-apple-ios                  # 64-bit iOS Simulator (x86_64)
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+          - aarch64-apple-ios
+          - x86_64-apple-ios
           # Unix-like Targets
-          - x86_64-unknown-freebsd            # 64-bit FreeBSD
-          - aarch64-unknown-freebsd           # 64-bit FreeBSD (ARM)
-          - x86_64-unknown-netbsd             # 64-bit NetBSD
-          - aarch64-unknown-netbsd            # 64-bit NetBSD (ARM)
-          - x86_64-unknown-openbsd            # 64-bit OpenBSD
-          - aarch64-unknown-openbsd           # 64-bit OpenBSD (ARM)
-          - x86_64-unknown-dragonfly          # 64-bit DragonFlyBSD
+          - x86_64-unknown-freebsd
+          - aarch64-unknown-freebsd
+          - x86_64-unknown-netbsd
+          - aarch64-unknown-netbsd
+          - x86_64-unknown-openbsd
+          - aarch64-unknown-openbsd
+          - x86_64-unknown-dragonfly
           # Solaris
-          - x86_64-sun-solaris                # 64-bit Solaris (x86_64)
+          - x86_64-sun-solaris
+          - sparcv9-sun-solaris
           # Android Targets
-          - aarch64-linux-android             # 64-bit Android (ARM)
-          - x86_64-linux-android              # 64-bit Android (x86_64)
-          # WASM (WebAssembly)
-          - wasm32-wasi                       # WebAssembly with WASI
-          # More Exotic and Less Common Targets
-          - powerpc64-unknown-linux-gnu       # 64-bit Linux (PowerPC)
-          - powerpc64le-unknown-linux-gnu     # 64-bit Linux (PowerPC Little Endian)
-          - riscv64gc-unknown-linux-gnu       # 64-bit Linux (RISC-V)
-          - sparcv9-sun-solaris               # 64-bit Solaris (SPARC V9)
-          - x86_64-unknown-haiku              # 64-bit Haiku OS (BeOS)
-          - x86_64-unknown-redox              # 64-bit Redox OS
+          - aarch64-linux-android
+          - x86_64-linux-android
+          # WebAssembly
+          - wasm32-wasi
+          # Other Targets
+          - powerpc64-unknown-linux-gnu
+          - powerpc64le-unknown-linux-gnu
+          - riscv64gc-unknown-linux-gnu
+          - x86_64-unknown-haiku
+          - x86_64-unknown-redox
 
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install Dependencies
+    - name: Install Dependencies (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
@@ -70,6 +72,22 @@ jobs:
       run: |
         rustup target add aarch64-apple-ios
         rustup target add x86_64-apple-ios
+
+    - name: Set OpenSSL Environment Variables
+      if: matrix.os == 'ubuntu-latest' && 
+          (matrix.target == 'x86_64-unknown-linux-gnu' || 
+           matrix.target == 'aarch64-unknown-linux-gnu' || 
+           matrix.target == 'x86_64-unknown-linux-musl' || 
+           matrix.target == 'aarch64-unknown-linux-musl')
+      run: |
+        export OPENSSL_DIR=/usr
+        export OPENSSL_LIB_DIR=$OPENSSL_DIR/lib
+        export OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include
+        export PKG_CONFIG_PATH=$OPENSSL_DIR/lib/pkgconfig
+
+    - name: Install Rust Toolchain for Windows
+      if: matrix.os == 'windows-latest'
+      run: rustup target add ${{ matrix.target }}
 
     - name: Install Cross (for cross-compiling)
       run: cargo install cross
