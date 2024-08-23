@@ -19,43 +19,20 @@ jobs:
           - aarch64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
-          - x86_64-unknown-linux-gnux32
-          - sparcv9-unknown-linux-gnu
-          - mips64-unknown-linux-gnuabi64
-          - mips64el-unknown-linux-gnuabi64
-          - s390x-unknown-linux-gnu
-          - riscv64gc-unknown-linux-gnu
           # Windows Targets
           - x86_64-pc-windows-gnu
-          - aarch64-pc-windows-msvc
           - x86_64-pc-windows-msvc
+          - aarch64-pc-windows-msvc
           # macOS and iOS Targets
           - x86_64-apple-darwin
           - aarch64-apple-darwin
           - aarch64-apple-ios
           - x86_64-apple-ios
-          # Unix-like Targets
-          - x86_64-unknown-freebsd
-          - aarch64-unknown-freebsd
-          - x86_64-unknown-netbsd
-          - aarch64-unknown-netbsd
-          - x86_64-unknown-openbsd
-          - aarch64-unknown-openbsd
-          - x86_64-unknown-dragonfly
-          # Solaris
-          - x86_64-sun-solaris
-          - sparcv9-sun-solaris
           # Android Targets
           - aarch64-linux-android
           - x86_64-linux-android
           # WebAssembly
           - wasm32-wasi
-          # Other Targets
-          - powerpc64-unknown-linux-gnu
-          - powerpc64le-unknown-linux-gnu
-          - riscv64gc-unknown-linux-gnu
-          - x86_64-unknown-haiku
-          - x86_64-unknown-redox
 
     steps:
     - uses: actions/checkout@v2
