@@ -9,12 +9,27 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NDK_VERSION: "23.2.8568313"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+
+    - name: Install Android NDK
+      run: |
+        sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+        echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
 
     - name: Install Rust
       uses: actions-rs/toolchain@v1
