@@ -24,6 +24,3 @@ lto = true
 codegen-units = 1
 panic = 'abort'
 strip = true
-
-[target.aarch64-linux-android]
-rustflags = ["-C", "link-arg=-nostdlib++"]
