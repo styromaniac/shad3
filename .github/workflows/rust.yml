@@ -15,17 +15,17 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
           - os: macos-latest
             target: x86_64-apple-darwin
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-          - os: ubuntu-latest
-            target: wasm32-unknown-unknown
 
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v2
 
     - name: Install Rust
       uses: actions-rs/toolchain@v1
@@ -34,19 +34,17 @@ jobs:
         target: ${{ matrix.target }}
         override: true
 
-    - name: Install wasm-pack
-      if: matrix.target == 'wasm32-unknown-unknown'
-      uses: jetli/wasm-pack-action@v0.4.0
+    - name: Install dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libssl-dev
 
     - name: Build
       uses: actions-rs/cargo@v1
       with:
         command: build
         args: --release --target ${{ matrix.target }}
-
-    - name: Build WebAssembly
-      if: matrix.target == 'wasm32-unknown-unknown'
-      run: wasm-pack build --target web
 
     - name: Run tests
       uses: actions-rs/cargo@v1
@@ -55,9 +53,7 @@ jobs:
         args: --target ${{ matrix.target }}
 
     - name: Upload artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v2
       with:
         name: ${{ matrix.target }}-build
-        path: |
-          target/${{ matrix.target }}/release
-          pkg/
+        path: target/${{ matrix.target }}/release/
