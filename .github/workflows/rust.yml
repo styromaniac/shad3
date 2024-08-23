@@ -1,4 +1,4 @@
-name: Rust CI for Android (aarch64)
+name: Rust CI for Android (aarch64) and GNU/Linux
 
 on:
   push:
@@ -13,7 +13,7 @@ env:
   NDK_VERSION: "25.2.9519653"
 
 jobs:
-  build:
+  android-build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-android-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Check formatting
       run: cargo fmt -- --check
@@ -71,14 +71,48 @@ jobs:
         CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
       run: cargo build --target aarch64-linux-android --release
 
-    - name: Upload artifacts
+    - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
       with:
         name: aarch64-linux-android-build
         path: target/aarch64-linux-android/release/shad3
 
-    - name: Upload debug symbols
+  linux-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+    - name: Clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Check (Debug)
+      run: cargo check
+
+    - name: Build (Release)
+      run: cargo build --release
+
+    - name: Run tests
+      run: cargo test --release
+
+    - name: Upload Linux artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: aarch64-linux-android-debug-symbols
-        path: target/aarch64-linux-android/release/shad3.d
+        name: linux-build
+        path: target/release/shad3
