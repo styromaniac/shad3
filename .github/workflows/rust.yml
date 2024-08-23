@@ -30,6 +30,7 @@ jobs:
       id: get_version
       run: |
         version=$(grep '^version =' Cargo.toml | cut -d '"' -f2)
+        echo "Extracted version: $version"
         echo "version=$version" >> $GITHUB_OUTPUT
 
   create-tag:
@@ -38,10 +39,13 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     - name: Create and push tag
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
+        echo "Extracted version: ${{ needs.extract-version.outputs.version }}"
         git tag -a v${{ needs.extract-version.outputs.version }} -m "Release v${{ needs.extract-version.outputs.version }}"
         git push origin v${{ needs.extract-version.outputs.version }}
     - name: Trigger release workflow
@@ -237,8 +241,15 @@ jobs:
   release:
     needs: [create-tag, extract-version, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    if: always()
     steps:
+      - name: Debug Information
+        run: |
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "github.ref: ${{ github.ref }}"
+          echo "github.sha: ${{ github.sha }}"
+          echo "Extract Version Output: ${{ needs.extract-version.outputs.version }}"
+
       - uses: actions/checkout@v4
 
       - name: Download all artifacts
@@ -251,6 +262,7 @@ jobs:
 
       - name: Create Release
         id: create_release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -261,6 +273,7 @@ jobs:
           prerelease: false
 
       - name: Upload Android Release Asset
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -271,6 +284,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Linux Release Asset
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -281,6 +295,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload MacOS Release Asset
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -291,6 +306,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Windows Release Asset
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
