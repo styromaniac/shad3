@@ -9,7 +9,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NDK_VERSION: "25.2.9519653"
   RUST_BACKTRACE: 1
 
 jobs:
@@ -18,31 +17,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        cmdline-tools-version: '10406996'
-
-    - name: Install Android NDK
-      run: |
-        sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
-        echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
-
-    - name: Setup Android NDK
-      run: |
-        echo "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
-
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: aarch64-linux-android
-        components: rustfmt, clippy
+
+    - name: Install cross
+      run: cargo install cross
 
     - name: Cache Rust dependencies
       uses: actions/cache@v4
@@ -53,38 +34,20 @@ jobs:
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install cross
-      run: cargo install cross
-
     - name: Check formatting
       run: cargo fmt -- --check
 
     - name: Clippy
       run: cross clippy --target aarch64-linux-android -- -D warnings
 
-    - name: Debug Info
-      run: |
-        echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
-        echo "PATH: $PATH"
-        ls -l $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
-        aarch64-linux-android23-clang --version
-
     - name: Build
-      run: |
-        cross build --verbose --release --target aarch64-linux-android
+      run: cross build --target aarch64-linux-android --release
 
     - name: Run tests
-      run: |
-        cross test --verbose --target aarch64-linux-android
+      run: cross test --target aarch64-linux-android --release
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: aarch64-linux-android-build
         path: target/aarch64-linux-android/release/shad3
-
-    - name: Upload debug symbols
-      uses: actions/upload-artifact@v4
-      with:
-        name: aarch64-linux-android-debug-symbols
-        path: target/aarch64-linux-android/release/shad3.d
