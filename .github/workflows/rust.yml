@@ -9,7 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NDK_VERSION: "25.2.9519653"  # Updated to a more recent version
+  NDK_VERSION: "25.2.9519653"
   RUST_BACKTRACE: 1
 
 jobs:
@@ -24,13 +24,10 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Set JAVA_HOME
-      run: echo "JAVA_HOME=$JAVA_HOME_17_X64" >> $GITHUB_ENV
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        cmdline-tools-version: '10406996'  # Updated to latest version
+        cmdline-tools-version: '10406996'
 
     - name: Install Android NDK
       run: |
@@ -73,14 +70,10 @@ jobs:
         aarch64-linux-android23-clang --version
 
     - name: Build
-      env:
-        RUSTFLAGS: "-C link-arg=-nostdlib++"
       run: |
         cross build --verbose --release --target aarch64-linux-android
 
     - name: Run tests
-      env:
-        RUSTFLAGS: "-C link-arg=-nostdlib++"
       run: |
         cross test --verbose --target aarch64-linux-android
 
