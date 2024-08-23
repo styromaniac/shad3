@@ -1,18 +1,18 @@
 use anyhow::Result;
+use futures::future::join_all;
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
+use regex::Regex;
 use reqwest::Client;
 use sha3::{Digest, Sha3_512};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
+use std::env;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::sync::{Arc, Mutex};
-use std::time::{Instant, Duration};
-use std::env;
-use regex::Regex;
 use std::path::Path;
-use indicatif::{ProgressBar, ProgressStyle};
-use futures::future::join_all;
-use std::collections::BinaryHeap;
-use std::cmp::Reverse;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 const CHECKSUMS_DIR: &str = "checksums";
 const OUTPUT_FILE: &str = "checksums/all_checksums.txt";
@@ -25,7 +25,9 @@ async fn main() -> Result<()> {
     }
 
     let url = &args[1];
-    let expect = args.iter().position(|arg| arg == "--expect")
+    let expect = args
+        .iter()
+        .position(|arg| arg == "--expect")
         .and_then(|i| args.get(i + 1))
         .map(|s| s.to_string());
 
@@ -57,7 +59,11 @@ async fn download_files(base_url: &str) -> Result<String> {
     let mut filenames_to_download = Vec::new();
 
     let original_filename = base_url.split('/').last().unwrap_or("block.txt").to_string();
-    let (prefix, number_part) = original_filename.split_at(original_filename.find(char::is_numeric).unwrap_or(original_filename.len()));
+    let (prefix, number_part) = original_filename.split_at(
+        original_filename
+            .find(char::is_numeric)
+            .unwrap_or(original_filename.len()),
+    );
     let padding_length = number_part.chars().take_while(|c| *c == '0').count();
 
     let mut current_number = extract_number(&original_filename);
@@ -69,9 +75,9 @@ async fn download_files(base_url: &str) -> Result<String> {
         } else {
             original_filename.clone()
         };
-        
+
         filenames_to_download.push(new_filename);
-        
+
         if current_number.is_none() || current_number == Some(0) {
             break;
         }
@@ -87,7 +93,7 @@ async fn download_files(base_url: &str) -> Result<String> {
         async move {
             let current_url = base_url.replace(&original_filename, &filename);
             println!("Attempting to download: {}", current_url);
-            
+
             let response = client.get(&current_url).send().await?;
             if !response.status().is_success() {
                 println!("File not found: {}", current_url);
@@ -101,7 +107,8 @@ async fn download_files(base_url: &str) -> Result<String> {
     });
 
     let download_results: Vec<Result<Option<(String, Vec<u8>)>>> = join_all(download_futures).await;
-    let mut downloaded_files: Vec<(String, Vec<u8>)> = download_results.into_iter()
+    let mut downloaded_files: Vec<(String, Vec<u8>)> = download_results
+        .into_iter()
         .filter_map(|r| r.ok().flatten())
         .collect();
 
@@ -110,9 +117,7 @@ async fn download_files(base_url: &str) -> Result<String> {
     }
 
     // Sort files in descending order based on extracted number
-    downloaded_files.sort_by(|(a, _), (b, _)| {
-        extract_number(b).cmp(&extract_number(a))
-    });
+    downloaded_files.sort_by(|(a, _), (b, _)| extract_number(b).cmp(&extract_number(a)));
 
     // Combine all downloaded files
     let combined_filename = "combined_block.txt";
@@ -133,14 +138,19 @@ fn extract_number(filename: &str) -> Option<u32> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
-fn process_file_parallel(filename: &str, expect: Option<&str>) -> Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)> {
+fn process_file_parallel(
+    filename: &str,
+    expect: Option<&str>,
+) -> Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
     let total_lines = reader.lines().count();
     let progress_bar = ProgressBar::new(total_lines as u64);
-    progress_bar.set_style(ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .unwrap_or_else(|_| ProgressStyle::default_bar()));
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .unwrap_or_else(|_| ProgressStyle::default_bar()),
+    );
 
     let start_time = Instant::now();
 
@@ -154,7 +164,7 @@ fn process_file_parallel(filename: &str, expect: Option<&str>) -> Result<(Vec<(V
 
     while processed_lines < total_lines {
         let chunk: Vec<_> = lines.by_ref().take(chunk_size).collect::<Result<_, _>>()?;
-        
+
         let chunk_results: Vec<(Vec<u8>, Vec<u8>)> = chunk
             .par_iter()
             .filter_map(|line| {
@@ -204,9 +214,11 @@ fn write_sorted_checksums_parallel(
 
     let writer = Arc::new(Mutex::new(BufWriter::new(File::create(output_file)?)));
     let progress_bar = ProgressBar::new(total_checksums as u64);
-    progress_bar.set_style(ProgressStyle::default_bar()
-        .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
-        .unwrap_or_else(|_| ProgressStyle::default_bar()));
+    progress_bar.set_style(
+        ProgressStyle::default_bar()
+            .template("[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}")
+            .unwrap_or_else(|_| ProgressStyle::default_bar()),
+    );
 
     // Create sorted temp files
     let temp_files = create_sorted_temp_files(checksums, chunk_size, &progress_bar)?;
