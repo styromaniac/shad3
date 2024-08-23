@@ -2,11 +2,10 @@ name: Cross-Compile Rust Project
 
 on:
   push:
-    branches: [main]
+    branches: [main]  # Trigger on any push to the main branch
   pull_request:
-    branches: [main]
-  # Trigger on any file change
-  workflow_dispatch:
+    branches: [main]  # Trigger on pull requests to the main branch
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
   build:
