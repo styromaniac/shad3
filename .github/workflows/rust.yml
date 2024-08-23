@@ -1,4 +1,4 @@
-name: Rust CI for Android (aarch64) and GNU/Linux
+name: Rust CI for Android, GNU/Linux, and MacOS
 
 on:
   push:
@@ -115,4 +115,44 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: linux-build
+        path: target/release/shad3
+
+  macos-build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-macos-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Check formatting
+      run: cargo fmt -- --check
+
+    - name: Clippy
+      run: cargo clippy -- -D warnings
+
+    - name: Check (Debug)
+      run: cargo check
+
+    - name: Build (Release)
+      run: cargo build --release
+
+    - name: Run tests
+      run: cargo test --release
+
+    - name: Upload MacOS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
         path: target/release/shad3
