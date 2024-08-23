@@ -37,6 +37,12 @@ jobs:
         sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
         echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
 
+    - name: Setup Android NDK
+      run: |
+        export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}
+        echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
+        echo "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
@@ -64,12 +70,16 @@ jobs:
     - name: Build
       env:
         RUSTFLAGS: "-C link-arg=-nostdlib++"
-      run: cross build --verbose --release --target aarch64-linux-android
+      run: |
+        export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+        cross build --verbose --release --target aarch64-linux-android
 
     - name: Run tests
       env:
         RUSTFLAGS: "-C link-arg=-nostdlib++"
-      run: cross test --verbose --target aarch64-linux-android
+      run: |
+        export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+        cross test --verbose --target aarch64-linux-android
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
