@@ -1,83 +1,63 @@
-name: Cross-Compile Rust Project
+name: Rust CI
 
 on:
   push:
-    branches: [main]  # Trigger on any push to the main branch
+    branches: [main]
   pull_request:
-    branches: [main]  # Trigger on pull requests to the main branch
-  workflow_dispatch:  # Allows manual triggering of the workflow
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
   build:
-
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        target: 
-          # Linux Targets
-          - x86_64-unknown-linux-gnu
-          - aarch64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-musl
-          # Windows Targets
-          - x86_64-pc-windows-gnu
-          - x86_64-pc-windows-msvc
-          - aarch64-pc-windows-msvc
-          # macOS and iOS Targets
-          - x86_64-apple-darwin
-          - aarch64-apple-darwin
-          - aarch64-apple-ios
-          - x86_64-apple-ios
-          # Android Targets
-          - aarch64-linux-android
-          - x86_64-linux-android
-          # WebAssembly
-          - wasm32-wasi
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            target: wasm32-unknown-unknown
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - name: Install Dependencies (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y pkg-config libssl-dev gcc-multilib
-
-    - name: Install iOS Targets
-      if: matrix.os == 'macos-latest'
-      run: |
-        rustup target add aarch64-apple-ios
-        rustup target add x86_64-apple-ios
-
-    - name: Set OpenSSL Environment Variables
-      if: matrix.os == 'ubuntu-latest' && 
-          (matrix.target == 'x86_64-unknown-linux-gnu' || 
-           matrix.target == 'aarch64-unknown-linux-gnu' || 
-           matrix.target == 'x86_64-unknown-linux-musl' || 
-           matrix.target == 'aarch64-unknown-linux-musl')
-      run: |
-        export OPENSSL_DIR=/usr
-        export OPENSSL_LIB_DIR=$OPENSSL_DIR/lib
-        export OPENSSL_INCLUDE_DIR=$OPENSSL_DIR/include
-        export PKG_CONFIG_PATH=$OPENSSL_DIR/lib/pkgconfig
-
-    - name: Install Rust Toolchain for Windows
-      if: matrix.os == 'windows-latest'
-      run: rustup target add ${{ matrix.target }}
-
-    - name: Install Cross (for cross-compiling)
-      run: cargo install cross
-
-    - name: Build with Cross
-      run: |
-        if [ "${{ matrix.os }}" = "macos-latest" ] || [ "${{ matrix.os }}" = "windows-latest" ]; then
-          cargo build --release --target ${{ matrix.target }}
-        else
-          cross build --release --target ${{ matrix.target }}
-        fi
-
-    - name: Upload Binaries
-      uses: actions/upload-artifact@v2
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
       with:
-        name: ${{ matrix.target }}-binaries
-        path: target/${{ matrix.target }}/release/
+        toolchain: stable
+        target: ${{ matrix.target }}
+        override: true
+
+    - name: Install wasm-pack
+      if: matrix.target == 'wasm32-unknown-unknown'
+      uses: jetli/wasm-pack-action@v0.4.0
+
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target ${{ matrix.target }}
+
+    - name: Build WebAssembly
+      if: matrix.target == 'wasm32-unknown-unknown'
+      run: wasm-pack build --target web
+
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --target ${{ matrix.target }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.target }}-build
+        path: |
+          target/${{ matrix.target }}/release
+          pkg/
