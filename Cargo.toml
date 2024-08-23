@@ -1,9 +1,9 @@
 [package]
 name = "shad3"
-version = "1.0.0"
+version = "1"
 edition = "2021"
 authors = ["Alex Goven"]
-description = "App for hashing entries in blocklists to>
+description = "App for hashing entries in blocklists"
 license = "GNU GPL v3"
 repository = "https://github.com/styromaniac/shad3"
 
