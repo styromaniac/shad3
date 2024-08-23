@@ -9,7 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NDK_VERSION: "23.2.8568313"
+  NDK_VERSION: "25.2.9519653"  # Updated to a more recent version
   RUST_BACKTRACE: 1
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        cmdline-tools-version: '9477386'
+        cmdline-tools-version: '10406996'  # Updated to latest version
 
     - name: Install Android NDK
       run: |
@@ -39,8 +39,6 @@ jobs:
 
     - name: Setup Android NDK
       run: |
-        export ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}
-        echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
         echo "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
 
     - name: Install Rust
@@ -67,18 +65,23 @@ jobs:
     - name: Clippy
       run: cross clippy --target aarch64-linux-android -- -D warnings
 
+    - name: Debug Info
+      run: |
+        echo "ANDROID_NDK_HOME: $ANDROID_NDK_HOME"
+        echo "PATH: $PATH"
+        ls -l $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+        aarch64-linux-android23-clang --version
+
     - name: Build
       env:
         RUSTFLAGS: "-C link-arg=-nostdlib++"
       run: |
-        export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
         cross build --verbose --release --target aarch64-linux-android
 
     - name: Run tests
       env:
         RUSTFLAGS: "-C link-arg=-nostdlib++"
       run: |
-        export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
         cross test --verbose --target aarch64-linux-android
 
     - name: Upload artifacts
