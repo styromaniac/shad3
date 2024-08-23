@@ -37,7 +37,8 @@ async fn main() -> Result<()> {
     let filename = download_files(url).await?;
 
     println!("Processing file...");
-    let (checksums, hashing_time, total_lines) = process_file_parallel(&filename, expect.as_deref())?;
+    let (checksums, hashing_time, total_lines) =
+        process_file_parallel(&filename, expect.as_deref())?;
 
     // Calculate and display hashing rate
     let hashing_rate = total_lines as f64 / hashing_time.as_secs_f64();
@@ -58,7 +59,11 @@ async fn download_files(base_url: &str) -> Result<String> {
     let client = Client::new();
     let mut filenames_to_download = Vec::new();
 
-    let original_filename = base_url.split('/').last().unwrap_or("block.txt").to_string();
+    let original_filename = base_url
+        .split('/')
+        .last()
+        .unwrap_or("block.txt")
+        .to_string();
     let (prefix, number_part) = original_filename.split_at(
         original_filename
             .find(char::is_numeric)
