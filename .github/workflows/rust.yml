@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NDK_VERSION: "25.2.9519653"
 
 jobs:
   build:
@@ -33,12 +34,22 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
 
-    - name: Install Android NDK
-      run: |
-        sdkmanager --install "ndk;25.2.9519653"
-        echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/25.2.9519653" >> $GITHUB_ENV
+    - name: Cache Android NDK
+      id: cache-ndk
+      uses: actions/cache@v3
+      with:
+        path: ${ANDROID_SDK_ROOT}/ndk/${{ env.NDK_VERSION }}
+        key: ${{ runner.os }}-ndk-${{ env.NDK_VERSION }}
 
-    - name: Cache dependencies
+    - name: Install Android NDK
+      if: steps.cache-ndk.outputs.cache-hit != 'true'
+      run: |
+        sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+
+    - name: Set NDK path
+      run: echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+
+    - name: Cache Rust dependencies
       uses: actions/cache@v3
       with:
         path: |
