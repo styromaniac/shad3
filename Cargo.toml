@@ -1,11 +1,11 @@
 [package]
 name = "shad3"
-version = "1"
+version = "1.0.1"
 edition = "2021"
 authors = ["Alex Goven"]
 description = "App for hashing entries in blocklists"
 license = "GNU GPL v3"
-repository = "https://github.com/styromaniac/shad3"
+repository = "github.com/styromaniac/SHAD3/tree/main"
 
 [dependencies]
 anyhow = "1.0.75"
