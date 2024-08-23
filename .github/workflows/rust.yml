@@ -1,14 +1,19 @@
-name: Cross-Platform Build
+name: Cross-Compile Rust Project
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        target:
+        target: 
           - x86_64-unknown-linux-gnu
           - aarch64-unknown-linux-gnu
           - x86_64-pc-windows-gnu
@@ -18,13 +23,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Rust
+
+    - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         target: ${{ matrix.target }}
+
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
+
     - name: Upload Binaries
       uses: actions/upload-artifact@v2
       with:
