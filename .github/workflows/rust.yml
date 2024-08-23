@@ -51,6 +51,7 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: aarch64-linux-android
+        components: rustfmt, clippy
 
     - name: Cache Rust dependencies
       uses: actions/cache@v4
@@ -77,3 +78,18 @@ jobs:
     - name: Run tests
       env:
         CFLAGS: "-I$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
+        CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang"
+      run: |
+        cargo test --target aarch64-linux-android --release -vv
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aarch64-linux-android-build
+        path: target/aarch64-linux-android/release/shad3
+
+    - name: Upload debug symbols
+      uses: actions/upload-artifact@v4
+      with:
+        name: aarch64-linux-android-debug-symbols
+        path: target/aarch64-linux-android/release/shad3.d
