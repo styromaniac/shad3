@@ -8,5 +8,5 @@ Use --expect "prefix goes here" after the file location/URL to only hash texts f
 
 ## Example: 
 ```
-./shad3 http://blocklists.io/block04.txt --expect "127.0.0.1 "
+./shad3 http://blocklists.com/block04.txt --expect "127.0.0.1 "
 
