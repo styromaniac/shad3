@@ -1,4 +1,5 @@
 [target.aarch64-linux-android]
+ar = "llvm-ar"
 rustflags = ["-C", "link-arg=-nostdlib++"]
 
 [target.armv7-linux-androideabi]
