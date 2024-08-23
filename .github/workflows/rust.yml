@@ -15,6 +15,31 @@ env:
   NDK_VERSION: "25.2.9519653"
 
 jobs:
+  extract-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Get version from Cargo.toml
+      id: get_version
+      run: |
+        version=$(grep '^version =' Cargo.toml | cut -d '"' -f2)
+        echo "version=$version" >> $GITHUB_OUTPUT
+
+  create-tag:
+    needs: extract-version
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    - name: Create and push tag
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag -a v${{ needs.extract-version.outputs.version }} -m "Release v${{ needs.extract-version.outputs.version }}"
+        git push origin v${{ needs.extract-version.outputs.version }}
+
   android-build:
     runs-on: ubuntu-latest
     steps:
@@ -200,7 +225,7 @@ jobs:
         path: target\release\shad3.exe
 
   release:
-    needs: [android-build, linux-build, macos-build, windows-build]
+    needs: [create-tag, extract-version, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -220,8 +245,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          tag_name: v${{ needs.extract-version.outputs.version }}
+          release_name: Release v${{ needs.extract-version.outputs.version }}
           draft: false
           prerelease: false
 
