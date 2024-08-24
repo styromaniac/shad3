@@ -50,8 +50,10 @@ pkg update && pkg upgrade && pkg install -y rust git build-essential && git clon
 1. Install Rust from https://www.rust-lang.org/tools/install
 
 2. Open Command Prompt or PowerShell and run:
-   ```git clone https://github.com/styromaniac/shad3.git
+   ```
+   git clone https://github.com/styromaniac/shad3.git
    cd shad3
-   cargo build --release```
+   cargo build --release
+   ```
 
 3. The executable will be in `target\release\shad3.exe`. You can move it to a directory in your PATH or run it from its current location.
