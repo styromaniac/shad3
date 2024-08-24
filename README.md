@@ -11,14 +11,14 @@ Use --expect "prefix goes here" after the file location/URL to only hash texts f
 ## Example:
 
 ### Android, Linux, and MacOS:
-```
+`
 ./shad3 http://blocklists.io/block04.txt --expect "127.0.0.1 "
-```
+`
 
 ### Windows:
-```
+`
 shad3.exe http://blocklists.io/block04.txt --expect "127.0.0.1 "
-```
+`
 
 ## Installation
 
