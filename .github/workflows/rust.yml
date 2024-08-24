@@ -18,50 +18,81 @@ env:
   NDK_VERSION: "25.2.9519653"
 
 jobs:
-  extract-version:
+  check:
+    name: Check
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Get version from Cargo.toml
-      id: get_version
-      run: |
-        version=$(grep '^version =' Cargo.toml | cut -d '"' -f2)
-        echo "version=$version" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
 
-  create-tag:
-    needs: extract-version
+  test:
+    name: Test Suite
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-    - uses: actions/checkout@v4
-    - name: Create and push tag
-      run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
-        git tag -a v${{ needs.extract-version.outputs.version }} -m "Release v${{ needs.extract-version.outputs.version }}"
-        git push origin v${{ needs.extract-version.outputs.version }}
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
 
   android-build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-
     - name: Install Android NDK
       run: |
         sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
         echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
-
     - name: Setup NDK toolchain
       run: |
         echo "$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
@@ -69,38 +100,15 @@ jobs:
         echo "CC_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang" >> $GITHUB_ENV
         echo "CXX_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang++" >> $GITHUB_ENV
         echo "AR_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+    - uses: actions-rs/toolchain@v1
       with:
-        targets: aarch64-linux-android
-        components: rustfmt, clippy
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
+        toolchain: stable
+        target: aarch64-linux-android
+        override: true
+    - uses: actions-rs/cargo@v1
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-android-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check formatting
-      run: cargo fmt -- --check
-
-    - name: Clippy
-      run: cargo clippy --target aarch64-linux-android -- -D warnings
-
-    - name: Check (Debug)
-      env:
-        CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
-      run: cargo check --target aarch64-linux-android
-
-    - name: Build (Release)
-      env:
-        CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
-      run: cargo build --target aarch64-linux-android --release
-
+        command: build
+        args: --release --target aarch64-linux-android
     - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -111,36 +119,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+    - uses: actions-rs/toolchain@v1
       with:
-        components: rustfmt, clippy
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
+        toolchain: stable
+        override: true
+    - uses: actions-rs/cargo@v1
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check formatting
-      run: cargo fmt -- --check
-
-    - name: Clippy
-      run: cargo clippy -- -D warnings
-
-    - name: Check (Debug)
-      run: cargo check
-
-    - name: Build (Release)
-      run: cargo build --release
-
-    - name: Run tests
-      run: cargo test --release
-
+        command: build
+        args: --release
     - name: Upload Linux artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -151,36 +137,14 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+    - uses: actions-rs/toolchain@v1
       with:
-        components: rustfmt, clippy
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
+        toolchain: stable
+        override: true
+    - uses: actions-rs/cargo@v1
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-macos-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check formatting
-      run: cargo fmt -- --check
-
-    - name: Clippy
-      run: cargo clippy -- -D warnings
-
-    - name: Check (Debug)
-      run: cargo check
-
-    - name: Build (Release)
-      run: cargo build --release
-
-    - name: Run tests
-      run: cargo test --release
-
+        command: build
+        args: --release
     - name: Upload MacOS artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -191,36 +155,14 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+    - uses: actions-rs/toolchain@v1
       with:
-        components: rustfmt, clippy
-
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
+        toolchain: stable
+        override: true
+    - uses: actions-rs/cargo@v1
       with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-windows-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-    - name: Check formatting
-      run: cargo fmt -- --check
-
-    - name: Clippy
-      run: cargo clippy -- -D warnings
-
-    - name: Check (Debug)
-      run: cargo check
-
-    - name: Build (Release)
-      run: cargo build --release
-
-    - name: Run tests
-      run: cargo test --release
-
+        command: build
+        args: --release
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -228,71 +170,33 @@ jobs:
         path: target\release\shad3.exe
 
   release:
-    needs: [extract-version, android-build, linux-build, macos-build, windows-build]
+    name: Release
+    needs: [check, test, fmt, clippy, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-
       - name: Display structure of downloaded files
         run: ls -R artifacts
-
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Publish to crates.io
+        uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/aarch64-linux-android-build/shad3
+            artifacts/linux-build/shad3
+            artifacts/macos-build/shad3
+            artifacts/windows-build/shad3.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          release_name: Release ${{ steps.get_version.outputs.VERSION }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Android Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/aarch64-linux-android-build/shad3
-          asset_name: shad3-android-aarch64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/linux-build/shad3
-          asset_name: shad3-linux-x86_64
-          asset_content_type: application/octet-stream
-
-      - name: Upload MacOS Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/macos-build/shad3
-          asset_name: shad3-macos-x86_64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/windows-build/shad3.exe
-          asset_name: shad3-windows-x86_64.exe
-          asset_content_type: application/octet-stream
