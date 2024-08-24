@@ -1,4 +1,4 @@
-![SHAD3](https://github.com/styromaniac/shad3/raw/main/SHAD3.png)
+![SHAD3](https://github.com/styromaniac/shad3/raw/main/SHAD3.png?v=1)
 
 # SHAD3
 
