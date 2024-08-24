@@ -6,6 +6,11 @@ authors = ["Alex Goven <7thhexangel@gmail.com>"]
 description = "App for hashing entries in blocklists"
 license = "GPL-3.0"
 repository = "https://github.com/styromaniac/shad3"
+documentation = "https://docs.rs/shad3"
+homepage = "https://github.com/styromaniac/shad3"
+readme = "README.md"
+keywords = ["hash", "blocklist", "security"]
+categories = ["command-line-utilities", "cryptography"]
 
 [dependencies]
 anyhow = "1.0.75"
