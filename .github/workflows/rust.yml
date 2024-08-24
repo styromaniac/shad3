@@ -8,8 +8,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-  repository_dispatch:
-    types: [trigger-release-workflow]
 
 permissions:
   contents: write
@@ -30,7 +28,6 @@ jobs:
       id: get_version
       run: |
         version=$(grep '^version =' Cargo.toml | cut -d '"' -f2)
-        echo "Extracted version: $version"
         echo "version=$version" >> $GITHUB_OUTPUT
 
   create-tag:
@@ -39,36 +36,32 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
     - name: Create and push tag
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
-        echo "Extracted version: ${{ needs.extract-version.outputs.version }}"
         git tag -a v${{ needs.extract-version.outputs.version }} -m "Release v${{ needs.extract-version.outputs.version }}"
         git push origin v${{ needs.extract-version.outputs.version }}
-    - name: Trigger release workflow
-      uses: peter-evans/repository-dispatch@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        event-type: trigger-release-workflow
 
   android-build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
+
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+
     - name: Install Android NDK
       run: |
         sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
         echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}" >> $GITHUB_ENV
+
     - name: Setup NDK toolchain
       run: |
         echo "$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
@@ -76,11 +69,13 @@ jobs:
         echo "CC_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang" >> $GITHUB_ENV
         echo "CXX_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang++" >> $GITHUB_ENV
         echo "AR_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         targets: aarch64-linux-android
         components: rustfmt, clippy
+
     - name: Cache Rust dependencies
       uses: actions/cache@v4
       with:
@@ -89,18 +84,23 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-android-cargo-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Check formatting
       run: cargo fmt -- --check
+
     - name: Clippy
       run: cargo clippy --target aarch64-linux-android -- -D warnings
+
     - name: Check (Debug)
       env:
         CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
       run: cargo check --target aarch64-linux-android
+
     - name: Build (Release)
       env:
         CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
       run: cargo build --target aarch64-linux-android --release
+
     - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -111,10 +111,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy
+
     - name: Cache Rust dependencies
       uses: actions/cache@v4
       with:
@@ -123,16 +125,22 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Check formatting
       run: cargo fmt -- --check
+
     - name: Clippy
       run: cargo clippy -- -D warnings
+
     - name: Check (Debug)
       run: cargo check
+
     - name: Build (Release)
       run: cargo build --release
+
     - name: Run tests
       run: cargo test --release
+
     - name: Upload Linux artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -143,10 +151,12 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy
+
     - name: Cache Rust dependencies
       uses: actions/cache@v4
       with:
@@ -155,16 +165,22 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-macos-cargo-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Check formatting
       run: cargo fmt -- --check
+
     - name: Clippy
       run: cargo clippy -- -D warnings
+
     - name: Check (Debug)
       run: cargo check
+
     - name: Build (Release)
       run: cargo build --release
+
     - name: Run tests
       run: cargo test --release
+
     - name: Upload MacOS artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -175,10 +191,12 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
       with:
         components: rustfmt, clippy
+
     - name: Cache Rust dependencies
       uses: actions/cache@v4
       with:
@@ -187,16 +205,22 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+
     - name: Check formatting
       run: cargo fmt -- --check
+
     - name: Clippy
       run: cargo clippy -- -D warnings
+
     - name: Check (Debug)
       run: cargo check
+
     - name: Build (Release)
       run: cargo build --release
+
     - name: Run tests
       run: cargo test --release
+
     - name: Upload Windows artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -207,18 +231,17 @@ jobs:
     needs: [create-tag, extract-version, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
-    timeout-minutes: 15  # Increase timeout to 15 minutes
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Display structure of downloaded files
         run: ls -R artifacts
-      
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -229,53 +252,43 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-      
-      - name: Upload Release Assets
+
+      - name: Upload Android Release Asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Starting asset upload..."
-          for asset in artifacts/*/*; do
-            asset_name=$(basename "$asset")
-            echo "Uploading asset: $asset_name"
-            response=$(curl -sS -X POST \
-              -H "Authorization: token $GITHUB_TOKEN" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary @"$asset" \
-              "${{ steps.create_release.outputs.upload_url }}?name=$asset_name")
-            echo "Upload response for $asset_name: $response"
-            if echo "$response" | grep -q '"errors":'; then
-              echo "Error uploading $asset_name"
-              exit 1
-            fi
-          done
-          echo "Asset upload complete."
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/aarch64-linux-android-build/shad3
+          asset_name: shad3-android-aarch64
+          asset_content_type: application/octet-stream
 
-      - name: Verify Uploaded Assets
+      - name: Upload Linux Release Asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "Verifying uploaded assets..."
-          release_id=$(echo '${{ steps.create_release.outputs.id }}')
-          assets=$(curl -sS -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/$release_id/assets")
-          echo "Assets found on release:"
-          echo "$assets" | jq -r '.[].name'
-          expected_assets=("shad3" "shad3.exe" "shad3-android-aarch64")
-          for asset in "${expected_assets[@]}"; do
-            if echo "$assets" | jq -e ".[] | select(.name == \"$asset\")" > /dev/null; then
-              echo "Asset $asset found."
-            else
-              echo "Asset $asset not found!"
-              exit 1
-            fi
-          done
-          echo "Asset verification complete."
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/linux-build/shad3
+          asset_name: shad3-linux-x86_64
+          asset_content_type: application/octet-stream
 
-      - name: Debug Information
-        if: always()
-        run: |
-          echo "github.event_name: ${{ github.event_name }}"
-          echo "github.ref: ${{ github.ref }}"
-          echo "github.sha: ${{ github.sha }}"
-          echo "Extract Version Output: ${{ needs.extract-version.outputs.version }}"
+      - name: Upload MacOS Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/macos-build/shad3
+          asset_name: shad3-macos-x86_64
+          asset_content_type: application/octet-stream
+
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./artifacts/windows-build/shad3.exe
+          asset_name: shad3-windows-x86_64.exe
+          asset_content_type: application/octet-stream
