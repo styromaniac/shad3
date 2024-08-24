@@ -97,16 +97,38 @@ jobs:
         echo "CC_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang" >> $GITHUB_ENV
         echo "CXX_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android23-clang++" >> $GITHUB_ENV
         echo "AR_aarch64_linux_android=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
-    - uses: actions-rs/toolchain@v1
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         target: aarch64-linux-android
         override: true
-    - uses: actions-rs/cargo@v1
+        components: rustfmt, clippy
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
       with:
-        use-cross: true
-        command: build
-        args: --release --target aarch64-linux-android
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-android-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Check formatting
+      run: cargo fmt -- --check
+    - name: Clippy
+      run: cargo clippy --target aarch64-linux-android -- -D warnings
+    - name: Check (Debug)
+      env:
+        CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
+      run: cargo check --target aarch64-linux-android
+    - name: Build (Release)
+      env:
+        CFLAGS: "-I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include -I$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android"
+      run: cargo build --target aarch64-linux-android --release
+    - name: Upload Android artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aarch64-linux-android-build
+        path: target/aarch64-linux-android/release/shad3
 
   linux-build:
     runs-on: ubuntu-latest
