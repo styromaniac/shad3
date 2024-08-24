@@ -1,4 +1,4 @@
-name: Rust CI for Android, GNU/Linux, MacOS, and Windows
+name: Rust CI and Publish
 
 on:
   push:
@@ -8,9 +8,6 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -109,11 +106,6 @@ jobs:
       with:
         command: build
         args: --release --target aarch64-linux-android
-    - name: Upload Android artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: aarch64-linux-android-build
-        path: target/aarch64-linux-android/release/shad3
 
   linux-build:
     runs-on: ubuntu-latest
@@ -127,11 +119,6 @@ jobs:
       with:
         command: build
         args: --release
-    - name: Upload Linux artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-build
-        path: target/release/shad3
 
   macos-build:
     runs-on: macos-latest
@@ -145,11 +132,6 @@ jobs:
       with:
         command: build
         args: --release
-    - name: Upload MacOS artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-build
-        path: target/release/shad3
 
   windows-build:
     runs-on: windows-latest
@@ -163,14 +145,9 @@ jobs:
       with:
         command: build
         args: --release
-    - name: Upload Windows artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: windows-build
-        path: target\release\shad3.exe
 
-  release:
-    name: Release
+  publish:
+    name: Publish to crates.io
     needs: [check, test, fmt, clippy, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -178,25 +155,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
           override: true
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      - name: Display structure of downloaded files
-        run: ls -R artifacts
-      - name: Publish to crates.io
+      - name: Publish
         uses: katyo/publish-crates@v2
         with:
           registry-token: ${{ secrets.CRATES_IO_TOKEN }}
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            artifacts/aarch64-linux-android-build/shad3
-            artifacts/linux-build/shad3
-            artifacts/macos-build/shad3
-            artifacts/windows-build/shad3.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
