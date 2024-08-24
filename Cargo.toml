@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Alex Goven <7thhexangel@gmail.com>"]
 description = "App for hashing entries in blocklists"
 license = "GPL-3.0"
-repository = "https://github.com/styromaniac/SHAD3"
+repository = "https://github.com/styromaniac/shad3"
 
 [dependencies]
 anyhow = "1.0.75"
