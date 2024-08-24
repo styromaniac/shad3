@@ -1,6 +1,6 @@
-# SHAD3
+# shad3
 
-SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists.
+shad3 is an application using SHA3-512 to hash entries in a list or multiple lists.
 
 For multiple lists, simply provide the highest numbered file's location/URL.
 
