@@ -75,6 +75,32 @@ jobs:
           command: clippy
           args: -- -D warnings
 
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
   android-build:
     runs-on: ubuntu-latest
     steps:
@@ -171,15 +197,23 @@ jobs:
 
   publish:
     name: Publish to crates.io
-    needs: [check, test, fmt, clippy, android-build, linux-build, macos-build, windows-build]
+    needs: [check, test, fmt, clippy, lint, android-build, linux-build, macos-build, windows-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+      - name: Setup Git user
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
       - name: Check if should publish
         id: should_publish
         run: |
@@ -192,18 +226,30 @@ jobs:
             echo "Ref: ${{ github.ref }}"
             echo "publish=false" >> $GITHUB_OUTPUT
           fi
+      - name: Get version from tag
+        if: steps.should_publish.outputs.publish == 'true'
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+      - name: Update version in Cargo.toml
+        if: steps.should_publish.outputs.publish == 'true'
+        run: cargo set-version ${{ steps.get_version.outputs.VERSION }}
+      - name: Dry run publish
+        if: steps.should_publish.outputs.publish == 'true'
+        run: cargo publish --dry-run
       - name: Publish to crates.io
         if: steps.should_publish.outputs.publish == 'true'
-        uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CRATES_IO_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          cargo publish || { echo "Publishing failed"; exit 1; }
       - name: Verify published version
         if: steps.should_publish.outputs.publish == 'true'
         run: |
           sleep 15  # Wait for crates.io to update
-          PUBLISHED_VERSION=$(cargo search ${{ github.event.repository.name }} --limit 1 | sed -nE 's/^[^"]*"//; s/".*//p')
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          if [ "$PUBLISHED_VERSION" != "$TAG_VERSION" ]; then
-            echo "Published version $PUBLISHED_VERSION does not match tag version $TAG_VERSION"
+          PUBLISHED_VERSION=$(cargo search shad3 --limit 1 | sed -nE 's/^[^"]*"//; s/".*//p')
+          if [ "$PUBLISHED_VERSION" != "${{ steps.get_version.outputs.VERSION }}" ]; then
+            echo "Published version $PUBLISHED_VERSION does not match tag version ${{ steps.get_version.outputs.VERSION }}"
             exit 1
+          else
+            echo "Successfully published version $PUBLISHED_VERSION to crates.io"
           fi
