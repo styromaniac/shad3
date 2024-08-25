@@ -14,14 +14,14 @@ Use `--output my-file-path.txt` to place the checksums file somewhere besides ch
 ## Example:
 
 ### Android, Linux, and MacOS:
-```bash
+`bash
 ./shad3 http://blocklists.io/block04.txt --expect "127.0.0.1 " --output var/www/html/pornSites.txt
-```
+`
 
 ### Windows:
-```bash
+`bash
 shad3.exe http://blocklists.io/block04.txt --expect "127.0.0.1 " --output Documents\pornQueries.txt
-```
+`
 
 ## Installation
 
