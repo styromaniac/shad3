@@ -23,7 +23,10 @@ type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        anyhow::bail!("Usage: {} <blocklist-url> [--expect <prefix>] [--output <path>]", args[0]);
+        anyhow::bail!(
+            "Usage: {} <blocklist-url> [--expect <prefix>] [--output <path>]",
+            args[0]
+        );
     }
 
     let url = &args[1];
