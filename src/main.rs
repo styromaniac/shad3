@@ -14,8 +14,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-const CHECKSUMS_DIR: &str = "checksums";
-const OUTPUT_FILE: &str = "checksums/all_checksums.txt";
+const DEFAULT_OUTPUT_FILE: &str = "checksums/checksums.txt";
 
 type DownloadResult = Result<Option<(String, Vec<u8>)>>;
 type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
@@ -24,7 +23,7 @@ type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        anyhow::bail!("Usage: {} <blocklist-url> [--expect <prefix>]", args[0]);
+        anyhow::bail!("Usage: {} <blocklist-url> [--expect <prefix>] [--output <path>]", args[0]);
     }
 
     let url = &args[1];
@@ -33,6 +32,13 @@ async fn main() -> Result<()> {
         .position(|arg| arg == "--expect")
         .and_then(|i| args.get(i + 1))
         .map(|s| s.to_string());
+
+    let output_path = args
+        .iter()
+        .position(|arg| arg == "--output")
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| DEFAULT_OUTPUT_FILE.to_string());
 
     let start_time = Instant::now();
 
@@ -48,8 +54,10 @@ async fn main() -> Result<()> {
     println!("Hashing rate: {:.2} hashes/second", hashing_rate);
 
     println!("Writing checksums...");
-    fs::create_dir_all(CHECKSUMS_DIR)?;
-    write_sorted_checksums_parallel(&checksums, OUTPUT_FILE)?;
+    if let Some(parent) = Path::new(&output_path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+    write_sorted_checksums_parallel(&checksums, &output_path)?;
 
     fs::remove_file(filename)?;
 
