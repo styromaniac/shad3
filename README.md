@@ -9,16 +9,18 @@ For multiple lists, simply provide the highest numbered file's location/URL.
 
 Use `--expect "prefix goes here"` after the file location/URL to only hash texts following the given prefix.
 
+Use `--output my-file-path.txt` to place the checksums file somewhere besides checksums/checksums.txt.
+
 ## Example:
 
 ### Android, Linux, and MacOS:
 ```bash
-./shad3 http://blocklists.io/block04.txt --expect "127.0.0.1 "
+./shad3 http://blocklists.io/block04.txt --expect "127.0.0.1 " --output var/www/html/pornSites.txt
 ```
 
 ### Windows:
 ```bash
-shad3.exe http://blocklists.io/block04.txt --expect "127.0.0.1 "
+shad3.exe http://blocklists.io/block04.txt --expect "127.0.0.1 " --output Documents\pornQueries.txt
 ```
 
 ## Installation
