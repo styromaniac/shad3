@@ -6,7 +6,7 @@ use regex::Regex;
 use reqwest::Client;
 use sha3::{Digest, Sha3_512};
 use std::cmp::Reverse;
-use std::collections::BinaryHeap;
+use std::collections::{BinaryHeap, HashMap};
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
@@ -24,18 +24,12 @@ async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
         anyhow::bail!(
-            "Usage: {} <blocklist-url> [--expect <prefix>] [--output <path>]",
+            "Usage: {} <blocklist-url> [--output <path>]",
             args[0]
         );
     }
 
     let url = &args[1];
-    let expect = args
-        .iter()
-        .position(|arg| arg == "--expect")
-        .and_then(|i| args.get(i + 1))
-        .map(|s| s.to_string());
-
     let output_path = args
         .iter()
         .position(|arg| arg == "--output")
@@ -49,8 +43,9 @@ async fn main() -> Result<()> {
     let filename = download_files(url).await?;
 
     println!("Processing file...");
-    let (checksums, hashing_time, total_lines) =
-        process_file_parallel(&filename, expect.as_deref())?;
+    let prefix = find_most_common_prefix(&filename)?;
+    println!("Detected prefix: '{}'", prefix);
+    let (checksums, hashing_time, total_lines) = process_file_parallel(&filename, &prefix)?;
 
     // Calculate and display hashing rate
     let hashing_rate = total_lines as f64 / hashing_time.as_secs_f64();
@@ -85,22 +80,34 @@ async fn download_files(base_url: &str) -> Result<String> {
     );
     let padding_length = number_part.chars().take_while(|c| *c == '0').count();
 
-    let mut current_number = extract_number(&original_filename);
+    let original_number = extract_number(&original_filename);
 
-    // Generate all filenames to download
-    loop {
-        let new_filename = if let Some(num) = current_number {
-            format!("{}{:0width$}", prefix, num, width = padding_length + 1)
-        } else {
-            original_filename.clone()
-        };
-
-        filenames_to_download.push(new_filename);
-
-        if current_number.is_none() || current_number == Some(0) {
-            break;
+    if let Some(start_num) = original_number {
+        // Count down
+        for num in (0..=start_num).rev() {
+            let new_filename = format!("{}{:0width$}", prefix, num, width = padding_length + 1);
+            filenames_to_download.push(new_filename);
         }
-        current_number = current_number.map(|n| n - 1);
+
+        // Count up until no more files are found
+        let mut current_num = start_num + 1;
+        loop {
+            let new_filename = format!("{}{:0width$}", prefix, current_num, width = padding_length + 1);
+            let current_url = base_url.replace(&original_filename, &new_filename);
+            
+            if let Ok(response) = Client::new().head(&current_url).send().await {
+                if response.status().is_success() {
+                    filenames_to_download.push(new_filename);
+                    current_num += 1;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    } else {
+        filenames_to_download.push(original_filename.clone());
     }
 
     // Parallel download
@@ -135,8 +142,8 @@ async fn download_files(base_url: &str) -> Result<String> {
         return Err(anyhow::anyhow!("No files were downloaded"));
     }
 
-    // Sort files in descending order based on extracted number
-    downloaded_files.sort_by(|(a, _), (b, _)| extract_number(b).cmp(&extract_number(a)));
+    // Sort files based on extracted number
+    downloaded_files.sort_by(|(a, _), (b, _)| extract_number(a).cmp(&extract_number(b)));
 
     // Combine all downloaded files
     let combined_filename = "combined_block.txt";
@@ -157,7 +164,27 @@ fn extract_number(filename: &str) -> Option<u32> {
         .and_then(|m| m.as_str().parse().ok())
 }
 
-fn process_file_parallel(filename: &str, expect: Option<&str>) -> ProcessResult {
+fn find_most_common_prefix(filename: &str) -> Result<String> {
+    let file = File::open(filename)?;
+    let reader = BufReader::new(file);
+    let mut prefix_counts = HashMap::new();
+
+    for line in reader.lines() {
+        let line = line?;
+        if let Some(space_index) = line.find(' ') {
+            let prefix = line[..space_index].to_string();
+            *prefix_counts.entry(prefix).or_insert(0) += 1;
+        }
+    }
+
+    prefix_counts
+        .into_iter()
+        .max_by_key(|&(_, count)| count)
+        .map(|(prefix, _)| prefix)
+        .ok_or_else(|| anyhow::anyhow!("No common prefix found"))
+}
+
+fn process_file_parallel(filename: &str, prefix: &str) -> ProcessResult {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
     let total_lines = reader.lines().count();
@@ -184,19 +211,8 @@ fn process_file_parallel(filename: &str, expect: Option<&str>) -> ProcessResult 
         let chunk_results: Vec<(Vec<u8>, Vec<u8>)> = chunk
             .par_iter()
             .filter_map(|line| {
-                let should_process = if let Some(prefix) = expect {
-                    line.starts_with(prefix)
-                } else {
-                    true
-                };
-
-                if should_process {
-                    let processed_line = if let Some(prefix) = expect {
-                        line.strip_prefix(prefix).unwrap_or(line)
-                    } else {
-                        line
-                    };
-
+                if line.starts_with(prefix) {
+                    let processed_line = line.strip_prefix(prefix).unwrap_or(line).trim_start();
                     let line_bytes = processed_line.as_bytes().to_vec();
                     let mut hasher = Sha3_512::new();
                     hasher.update(&line_bytes);
