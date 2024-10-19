@@ -27,10 +27,7 @@ async fn main() -> Result<()> {
     }
 
     let url = &args[1];
-    let output_path = args
-        .get(2)
-        .map(|s| s.as_str())
-        .unwrap_or(DEFAULT_OUTPUT_FILE);
+    let output_path = args.get(2).map(|s| s.as_str()).unwrap_or(DEFAULT_OUTPUT_FILE);
 
     let start_time = Instant::now();
 
@@ -43,8 +40,7 @@ async fn main() -> Result<()> {
         Some(p) => println!("Detected IP prefix: '{}'", p),
         None => println!("No common IP prefix detected. Processing all lines."),
     }
-    let (checksums, hashing_time, total_lines) =
-        process_file_parallel(&filename, prefix.as_deref())?;
+    let (checksums, hashing_time, total_lines) = process_file_parallel(&filename, prefix.as_deref())?;
 
     // Calculate and display hashing rate
     let hashing_rate = total_lines as f64 / hashing_time.as_secs_f64();
@@ -88,14 +84,9 @@ async fn download_files(base_url: &str) -> Result<String> {
         // Count up until no more files are found
         let mut current_num = start_num + 1;
         loop {
-            let new_filename = format!(
-                "{}{:0width$}",
-                prefix,
-                current_num,
-                width = padding_length + 1
-            );
+            let new_filename = format!("{}{:0width$}", prefix, current_num, width = padding_length + 1);
             let current_url = base_url.replace(&original_filename, &new_filename);
-
+            
             if let Ok(response) = Client::new().head(&current_url).send().await {
                 if response.status().is_success() {
                     filenames_to_download.push(new_filename);
@@ -169,7 +160,7 @@ fn find_most_common_ip_prefix(filename: &str) -> Result<Option<String>> {
     let file = File::open(filename)?;
     let reader = BufReader::new(file);
     let mut prefix_counts = HashMap::new();
-
+    
     // This regex pattern matches IPv4 addresses
     let ip_regex = Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")?;
 
@@ -213,23 +204,25 @@ fn process_file_parallel(filename: &str, prefix: Option<&str>) -> ProcessResult 
 
         let chunk_results: Vec<(Vec<u8>, Vec<u8>)> = chunk
             .par_iter()
-            .filter_map(|line| match prefix {
-                Some(p) if line.starts_with(p) => {
-                    let processed_line = line.strip_prefix(p).unwrap_or(line).trim_start();
-                    let line_bytes = processed_line.as_bytes().to_vec();
-                    let mut hasher = Sha3_512::new();
-                    hasher.update(&line_bytes);
-                    let hash = hasher.finalize().to_vec();
-                    Some((line_bytes, hash))
+            .filter_map(|line| {
+                match prefix {
+                    Some(p) if line.starts_with(p) => {
+                        let processed_line = line.strip_prefix(p).unwrap_or(line).trim_start();
+                        let line_bytes = processed_line.as_bytes().to_vec();
+                        let mut hasher = Sha3_512::new();
+                        hasher.update(&line_bytes);
+                        let hash = hasher.finalize().to_vec();
+                        Some((line_bytes, hash))
+                    },
+                    None => {
+                        let line_bytes = line.as_bytes().to_vec();
+                        let mut hasher = Sha3_512::new();
+                        hasher.update(&line_bytes);
+                        let hash = hasher.finalize().to_vec();
+                        Some((line_bytes, hash))
+                    },
+                    _ => None,
                 }
-                None => {
-                    let line_bytes = line.as_bytes().to_vec();
-                    let mut hasher = Sha3_512::new();
-                    hasher.update(&line_bytes);
-                    let hash = hasher.finalize().to_vec();
-                    Some((line_bytes, hash))
-                }
-                _ => None,
             })
             .collect();
 
