@@ -1,6 +1,8 @@
 # Logo
 SHAD3.png
 
+Cargo.toml
+
 # Rust build artifacts
 /target/
 
