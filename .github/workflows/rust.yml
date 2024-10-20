@@ -107,9 +107,10 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os == 'ubuntu-latest' && 'linux' ||
-                    matrix.os == 'macos-latest' && 'macos' ||
-                    'windows' }}-${{ matrix.arch }}-shad3
+          name: >-
+            SHAD3-${{ matrix.os == 'ubuntu-latest' && 'Linux' ||
+            matrix.os == 'macos-latest' && 'MacOS' ||
+            'Windows' }}_${{ matrix.arch }}
           path: >-
             target/${{ matrix.arch }}-${{ matrix.target }}/release/shad3*
 
@@ -133,7 +134,7 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | \
-          sed 's/version = ".*"/\1/')
+          sed 's/version = "\(.*\)"/\1/')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Create and push tag
         run: |
@@ -165,7 +166,6 @@ jobs:
         run: |
           VERSION="v${{ steps.get_version.outputs.VERSION }}"
           NOTES="Release ${{ steps.get_version.outputs.VERSION }}"
-
           if gh release view "$VERSION" --repo ${{ github.repository }} \
           &> /dev/null; then
             echo "Updating existing release $VERSION"
@@ -180,7 +180,6 @@ jobs:
               --notes "$NOTES" \
               --repo ${{ github.repository }}
           fi
-
           for artifact in ./artifacts/*/*; do
             filename=$(basename "$artifact")
             gh release upload "$VERSION" "$artifact#$filename" \
