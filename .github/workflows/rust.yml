@@ -257,7 +257,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          release_notes="Release notes for version ${{ steps.get_version.outputs.VERSION }}"
           gh release create v${{ steps.get_version.outputs.VERSION }} \
             --title "Release ${{ steps.get_version.outputs.VERSION }}" \
-            --notes "Release notes for version ${{ steps.get_version.outputs.VERSION }}" \
-            ./artifacts/*/*
+            --notes "$release_notes" \
+            ./artifacts/*/* \
+            --repo ${{ github.repository }}
