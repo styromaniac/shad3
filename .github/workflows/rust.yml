@@ -180,9 +180,14 @@ jobs:
               --notes "$NOTES" \
               --repo ${{ github.repository }}
           fi
-          for artifact in ./artifacts/*/*; do
-            filename=$(basename "$artifact")
-            gh release upload "$VERSION" "$artifact#$filename" \
-              --clobber \
-              --repo ${{ github.repository }}
+          for artifact in ./artifacts/*; do
+            os_arch=$(basename "$artifact")
+            for file in "$artifact"/*; do
+              filename=$(basename "$file")
+              extension="${filename##*.}"
+              gh release upload "$VERSION" \
+                "$file#SHAD3-${os_arch}.${extension}" \
+                --clobber \
+                --repo ${{ github.repository }}
+            done
           done

@@ -1,6 +1,6 @@
 [package]
 name = "shad3"
-version = "1.1.8"
+version = "1.1.9"
 edition = "2021"
 authors = ["Alex Goven <7thhexangel@gmail.com>"]
 description = "App for hashing entries in blocklists"
@@ -13,14 +13,14 @@ keywords = ["hash", "blocklist", "security"]
 categories = ["command-line-utilities", "cryptography"]
 
 [dependencies]
-anyhow = "1.0.8"
-rayon = "1.7.8"
-reqwest = { version = "0.11.8", default-features = false, features = ["rustls-tls", "stream"] }
-sha3 = "0.10.8"
-tokio = { version = "1.32.8", features = ["rt-multi-thread", "macros"] }
-regex = "1.9.8"
-futures = "0.3.8"
-indicatif = "0.17.8"
+anyhow = "1.0.9"
+rayon = "1.7.9"
+reqwest = { version = "0.11.9", default-features = false, features = ["rustls-tls", "stream"] }
+sha3 = "0.10.9"
+tokio = { version = "1.32.9", features = ["rt-multi-thread", "macros"] }
+regex = "1.9.9"
+futures = "0.3.9"
+indicatif = "0.17.9"
 hex = "0.4"
 
 [profile.release]
@@ -28,3 +28,4 @@ opt-level = 3
 lto = true
 codegen-units = 1
 strip = true
+debug = false
