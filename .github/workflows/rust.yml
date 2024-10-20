@@ -74,48 +74,125 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  build:
-    name: Build
-    needs: [check, test, fmt, clippy]
-    strategy:
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-            use-cross: true
-          - target: x86_64-apple-darwin
-            os: macos-latest
-          - target: aarch64-apple-darwin
-            os: macos-latest
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            use-cross: true
-    runs-on: ${{ matrix.os }}
+  linux-x86_64-build:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: ${{ matrix.use-cross }}
-          command: build
-          args: --release --target ${{ matrix.target }}
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/shad3*
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: x86_64-unknown-linux-gnu
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target x86_64-unknown-linux-gnu
+    - name: Upload Linux x86_64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-x86_64-build
+        path: target/x86_64-unknown-linux-gnu/release/shad3
+
+  linux-aarch64-build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: aarch64-unknown-linux-gnu
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --release --target aarch64-unknown-linux-gnu
+    - name: Upload Linux aarch64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-aarch64-build
+        path: target/aarch64-unknown-linux-gnu/release/shad3
+
+  macos-x86_64-build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: x86_64-apple-darwin
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target x86_64-apple-darwin
+    - name: Upload macOS x86_64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-x86_64-build
+        path: target/x86_64-apple-darwin/release/shad3
+
+  macos-aarch64-build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: aarch64-apple-darwin
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target aarch64-apple-darwin
+    - name: Upload macOS aarch64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-aarch64-build
+        path: target/aarch64-apple-darwin/release/shad3
+
+  windows-x86_64-build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: x86_64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --release --target x86_64-pc-windows-msvc
+    - name: Upload Windows x86_64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-x86_64-build
+        path: target\x86_64-pc-windows-msvc\release\shad3.exe
+
+  windows-aarch64-build:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: aarch64-pc-windows-msvc
+        override: true
+    - uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --release --target aarch64-pc-windows-msvc
+    - name: Upload Windows aarch64 artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-aarch64-build
+        path: target\aarch64-pc-windows-msvc\release\shad3.exe
 
   publish:
     name: Publish to crates.io and GitHub
-    needs: [build]
+    needs: [check, test, fmt, clippy, linux-x86_64-build, linux-aarch64-build, macos-x86_64-build, macos-aarch64-build, windows-x86_64-build, windows-aarch64-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
