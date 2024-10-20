@@ -1,10 +1,10 @@
+---
 name: Rust CI and Publish
 
 on:
   push:
     branches: [main]
-    tags:
-      - 'v*.*.*'
+    tags: ['v*.*.*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -74,144 +74,49 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  linux-x86_64-build:
-    name: Build on Linux x86_64
-    runs-on: ubuntu-latest
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [x86_64, aarch64]
+        include:
+          - os: ubuntu-latest
+            target: unknown-linux-gnu
+          - os: macos-latest
+            target: apple-darwin
+          - os: windows-latest
+            target: pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-gnu
+          target: ${{ matrix.arch }}-${{ matrix.target }}
           override: true
       - uses: actions-rs/cargo@v1
         with:
+          use-cross: >-
+            ${{ matrix.os == 'ubuntu-latest' &&
+            matrix.arch == 'aarch64' }}
           command: build
-          args: --release --target x86_64-unknown-linux-gnu
-      - name: Upload Linux x86_64 artifacts
+          args: >-
+            --release
+            --target ${{ matrix.arch }}-${{ matrix.target }}
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86_64-build
-          path: target/x86_64-unknown-linux-gnu/release/shad3
-
-  linux-aarch64-build:
-    name: Build on Linux aarch64
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target aarch64-unknown-linux-gnu
-      - name: Upload Linux aarch64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-aarch64-build
-          path: target/aarch64-unknown-linux-gnu/release/shad3
-
-  macos-x86_64-build:
-    name: Build on macOS x86_64
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-apple-darwin
-      - name: Upload macOS x86_64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-x86_64-build
-          path: target/x86_64-apple-darwin/release/shad3
-
-  macos-aarch64-build:
-    name: Build on macOS aarch64
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: aarch64-apple-darwin
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target aarch64-apple-darwin
-      - name: Upload macOS aarch64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-aarch64-build
-          path: target/aarch64-apple-darwin/release/shad3
-
-  windows-x86_64-build:
-    name: Build on Windows x86_64
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-pc-windows-msvc
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-pc-windows-msvc
-      - name: Upload Windows x86_64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-x86_64-build
-          path: target\x86_64-pc-windows-msvc\release\shad3.exe
-
-  windows-aarch64-build:
-    name: Build on Windows aarch64
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: aarch64-pc-windows-msvc
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --release --target aarch64-pc-windows-msvc
-      - name: Upload Windows aarch64 artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-aarch64-build
-          path: target\aarch64-pc-windows-msvc\release\shad3.exe
+          name: ${{ matrix.os }}-${{ matrix.arch }}-build
+          path: >-
+            target/${{ matrix.arch }}-${{ matrix.target }}/release/shad3*
 
   publish:
-    name: Publish to crates.io and GitHub
-    needs:
-      - check
-      - test
-      - fmt
-      - clippy
-      - linux-x86_64-build
-      - linux-aarch64-build
-      - macos-x86_64-build
-      - macos-aarch64-build
-      - windows-x86_64-build
-      - windows-aarch64-build
+    name: Publish
+    needs: [check, test, fmt, clippy, build]
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Grant write permission to push changes and create releases
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -221,42 +126,40 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install cargo-edit
-        run: cargo install cargo-edit
-      - name: Setup Git user
-        run: |
+      - run: cargo install cargo-edit
+      - run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
       - name: Check if should publish
         id: should_publish
         run: |
-          if [[ "${{ github.event_name }}" == 'push' && "${{ startsWith(github.ref, 'refs/tags/') }}" == 'true' ]]; then
-            echo "Should publish: yes"
+          if [[ "${{ github.event_name }}" == 'push' && \
+          "${{ startsWith(github.ref, 'refs/tags/') }}" == 'true' ]]
+          then
             echo "publish=true" >> $GITHUB_OUTPUT
           else
-            echo "Should publish: no"
-            echo "Event: ${{ github.event_name }}"
-            echo "Ref: ${{ github.ref }}"
             echo "publish=false" >> $GITHUB_OUTPUT
           fi
       - name: Get version from tag
         if: steps.should_publish.outputs.publish == 'true'
         id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" \
+          >> $GITHUB_OUTPUT
       - name: Update version in Cargo.toml
         if: steps.should_publish.outputs.publish == 'true'
-        run: cargo set-version ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          cargo set-version \
+          ${{ steps.get_version.outputs.VERSION }}
       - name: Commit updated Cargo.toml
         if: steps.should_publish.outputs.publish == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add Cargo.toml
-          git commit -m "Update version to ${{ steps.get_version.outputs.VERSION }}"
+          git commit -m "Update version to \
+          ${{ steps.get_version.outputs.VERSION }}"
           git push origin HEAD:${{ github.ref }}
-      - name: Dry run publish
-        if: steps.should_publish.outputs.publish == 'true'
-        run: cargo publish --dry-run
       - name: Publish to crates.io
         if: steps.should_publish.outputs.publish == 'true'
         env:
@@ -265,28 +168,26 @@ jobs:
       - name: Verify published version
         if: steps.should_publish.outputs.publish == 'true'
         run: |
-          sleep 15  # Wait for crates.io to update
-          PUBLISHED_VERSION=$(cargo search shad3 --limit 1 | sed -nE 's/^[^"]*"//; s/".*//p')
-          if [ "$PUBLISHED_VERSION" != "${{ steps.get_version.outputs.VERSION }}" ]; then
-            echo "Published version $PUBLISHED_VERSION does not match tag version ${{ steps.get_version.outputs.VERSION }}"
-            exit 1
-          else
-            echo "Successfully published version $PUBLISHED_VERSION to crates.io"
+          sleep 15
+          PUBLISHED_VERSION=$(cargo search shad3 --limit 1 | \
+          sed -nE 's/^[^"]*"//; s/".*//p')
+          if [ "$PUBLISHED_VERSION" != \
+          "${{ steps.get_version.outputs.VERSION }}" ]
+          then
+            echo "Version mismatch" && exit 1
           fi
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Install GitHub CLI
-        run: sudo apt-get install -y gh
+      - run: sudo apt-get install -y gh
       - name: Create GitHub Release
         if: steps.should_publish.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          release_notes="Release notes for version ${{ steps.get_version.outputs.VERSION }}"
-          gh release create v${{ steps.get_version.outputs.VERSION }} \
-            --title "Release ${{ steps.get_version.outputs.VERSION }}" \
-            --notes "$release_notes" \
-            ./artifacts/*/* \
-            --repo ${{ github.repository }}
+          gh release create "v${{ steps.get_version.outputs.VERSION }}" \
+          --title "Release ${{ steps.get_version.outputs.VERSION }}" \
+          --notes "Release notes for version \
+          ${{ steps.get_version.outputs.VERSION }}" \
+          ./artifacts/*/* \
+          --repo ${{ github.repository }}
