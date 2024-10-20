@@ -167,7 +167,7 @@ async fn download_files(base_url: &str) -> Result<Vec<String>> {
         return Err(anyhow::anyhow!("No files were downloaded"));
     }
 
-    downloaded_files.sort_by(|a, b| extract_number(a).cmp(&extract_number(b)));
+    downloaded_files.sort_by_key(|a| extract_number(a));
 
     Ok(downloaded_files)
 }
