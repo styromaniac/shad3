@@ -113,7 +113,25 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+      - name: Set up Android NDK
+        if: contains(matrix.target, 'android')
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r25b
+      - name: Build for Android
+        if: contains(matrix.target, 'android')
+        env:
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: >-
+            ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/
+            linux-x86_64/bin/aarch64-linux-android21-clang
+          CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER: >-
+            ${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/
+            linux-x86_64/bin/x86_64-linux-android21-clang
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }} --bin shad3
       - uses: actions-rs/cargo@v1
+        if: "!contains(matrix.target, 'android')"
         with:
           use-cross: true
           command: build
