@@ -100,6 +100,12 @@ jobs:
           - os: windows-latest
             arch: aarch64
             target: aarch64-pc-windows-msvc
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-linux-android
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-linux-android
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
@@ -109,9 +115,7 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: >-
-            ${{ matrix.os == 'ubuntu-latest' &&
-               matrix.arch == 'aarch64' }}
+          use-cross: true
           command: build
           args: >-
             --release
@@ -122,9 +126,11 @@ jobs:
         run: |
           New-Item -Path artifacts -ItemType Directory -Force
           $TARGET_DIR = "target/${{ matrix.target }}/release"
-          $OS = if ("${{ matrix.os }}" -eq "ubuntu-latest") { "linux" } `
-                elseif ("${{ matrix.os }}" -eq "macos-latest") { "macos" } `
-                else { "windows" }
+          $OS = if ("${{ matrix.os }}" -eq "ubuntu-latest") {
+            if ("${{ matrix.target }}" -like "*-android") { "termux" }
+            else { "linux" }
+          } elseif ("${{ matrix.os }}" -eq "macos-latest") { "macos" }
+          else { "windows" }
           if ($OS -eq "windows") {
             $EXE_FILE = "shad3.exe"
             $ARTIFACT_NAME = "shad3.exe"
@@ -215,6 +221,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: shad3-windows-latest_aarch64
+          path: artifacts
+      - name: Download termux_x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: shad3-ubuntu-latest_x86_64
+          path: artifacts
+      - name: Download termux_aarch64
+        uses: actions/download-artifact@v4
+        with:
+          name: shad3-ubuntu-latest_aarch64
           path: artifacts
       - run: sudo apt-get install -y gh
       - name: Create GitHub Release
