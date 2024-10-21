@@ -118,23 +118,24 @@ jobs:
             --target ${{ matrix.target }}
             --bin shad3
       - name: Prepare artifacts
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p artifacts
-          TARGET_DIR="target/${{ matrix.target }}/release"
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            EXE_FILE="shad3.exe"
-            ARTIFACT_NAME="shad3.exe"
-            ARCHIVE_NAME="shad3-${{ matrix.os }}_${{ matrix.arch }}.zip"
-            cp "$TARGET_DIR/$EXE_FILE" "artifacts/$ARTIFACT_NAME"
-            cd artifacts && zip "$ARCHIVE_NAME" "$ARTIFACT_NAME" && cd ..
-          else
-            BIN_FILE="shad3"
-            ARTIFACT_NAME="shad3"
-            ARCHIVE_NAME="shad3-${{ matrix.os }}_${{ matrix.arch }}.tar.gz"
-            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
-            cd artifacts && tar czf "$ARCHIVE_NAME" "$ARTIFACT_NAME" && cd ..
-          fi
+          New-Item -Path artifacts -ItemType Directory -Force
+          $TARGET_DIR = "target/${{ matrix.target }}/release"
+          if ("${{ matrix.os }}" -eq "windows-latest") {
+            $EXE_FILE = "shad3.exe"
+            $ARTIFACT_NAME = "shad3.exe"
+            $ARCHIVE_NAME = "shad3-${{ matrix.os }}_${{ matrix.arch }}.zip"
+            Copy-Item "$TARGET_DIR\$EXE_FILE" "artifacts\$ARTIFACT_NAME"
+            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" `
+              -DestinationPath "artifacts\$ARCHIVE_NAME"
+          } else {
+            $BIN_FILE = "shad3"
+            $ARTIFACT_NAME = "shad3"
+            $ARCHIVE_NAME = "shad3-${{ matrix.os }}_${{ matrix.arch }}.tar.gz"
+            Copy-Item "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
+            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $ARTIFACT_NAME
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: shad3-${{ matrix.os }}_${{ matrix.arch }}
