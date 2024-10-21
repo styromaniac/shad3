@@ -116,27 +116,27 @@ jobs:
           args: >-
             --release
             --target ${{ matrix.target }}
-            --bin SHAD3
+            --bin shad3
       - name: Prepare artifacts
         shell: bash
         run: |
           mkdir -p artifacts
           TARGET_DIR="target/${{ matrix.target }}/release"
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            EXE_FILE="SHAD3.exe"
-            PDB_FILE="SHAD3.pdb"
-            ARTIFACT_NAME_EXE="SHAD3-${{ matrix.os }}_${{ matrix.arch }}.exe"
-            ARTIFACT_NAME_PDB="SHAD3-${{ matrix.os }}_${{ matrix.arch }}.pdb"
+            EXE_FILE="shad3.exe"
+            PDB_FILE="shad3.pdb"
+            ARTIFACT_NAME_EXE="shad3-${{ matrix.os }}_${{ matrix.arch }}.exe"
+            ARTIFACT_NAME_PDB="shad3-${{ matrix.os }}_${{ matrix.arch }}.pdb"
             cp "$TARGET_DIR/$EXE_FILE" "artifacts/$ARTIFACT_NAME_EXE"
             cp "$TARGET_DIR/$PDB_FILE" "artifacts/$ARTIFACT_NAME_PDB"
           else
-            BIN_FILE="SHAD3"
-            ARTIFACT_NAME="SHAD3-${{ matrix.os }}_${{ matrix.arch }}"
+            BIN_FILE="shad3"
+            ARTIFACT_NAME="shad3-${{ matrix.os }}_${{ matrix.arch }}"
             cp "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
           fi
       - uses: actions/upload-artifact@v4
         with:
-          name: SHAD3-${{ matrix.os }}_${{ matrix.arch }}
+          name: shad3-${{ matrix.os }}_${{ matrix.arch }}
           path: artifacts/*
 
   publish:
@@ -174,7 +174,7 @@ jobs:
       - name: Verify published version
         run: |
           sleep 15
-          SEARCH_RESULT=$(cargo search SHAD3 --limit 1)
+          SEARCH_RESULT=$(cargo search shad3 --limit 1)
           PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | \
             sed -nE 's/^[^"]*"//; s/".*//p')
           if [[ "$PUBLISHED_VERSION" != \
@@ -183,7 +183,7 @@ jobs:
           fi
       - uses: actions/download-artifact@v4
         with:
-          name: SHAD3-${{ matrix.os }}_${{ matrix.arch }}
+          name: shad3-${{ matrix.os }}_${{ matrix.arch }}
           path: artifacts
       - run: sudo apt-get install -y gh
       - name: Create GitHub Release
