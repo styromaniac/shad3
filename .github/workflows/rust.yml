@@ -116,7 +116,6 @@ jobs:
           args: >-
             --release
             --target ${{ matrix.target }}
-            --bin shad3
       - name: Prepare artifacts
         shell: bash
         run: |
