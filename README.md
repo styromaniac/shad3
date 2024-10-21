@@ -9,17 +9,28 @@ Set a custom path after the URL to save the output file anywhere you need.
 
 ## Example:
 
-### Android, Linux, and MacOS:
-`bash
+### Android, Linux, and macOS:
+```bash
 ./shad3 http://blocklists.io/block04.txt var/www/html/pornSites.txt
-`
+```
 
 ### Windows:
-`bash
+```bash
 shad3.exe http://blocklists.io/block04.txt Documents\pornQueries.txt
-`
+```
 
 ## Installation
+
+### From Binary (Recommended)
+Pre-built binaries are available in the [releases](https://github.com/styromaniac/shad3/releases) section. You can download the appropriate archive for your operating system, extract it, and start using SHAD3 without the need to build from source.
+
+1. Download the binary release for your platform from the [releases](https://github.com/styromaniac/shad3/releases).
+2. Extract the contents of the archive.
+3. Move the binary to a directory in your PATH (optional).
+4. Verify the installation by running:
+   ```bash
+   shad3 --help
+   ```
 
 ### From Cargo
 1. Ensure you have Rust installed on your system. If not, follow the instructions [here](https://www.rust-lang.org/tools/install).
@@ -34,7 +45,9 @@ shad3.exe http://blocklists.io/block04.txt Documents\pornQueries.txt
    shad3 --help
    ```
 
-### From Source
+### From Source (Optional)
+If you'd prefer to build SHAD3 from source, follow the instructions below:
+
 1. Ensure you have Rust installed on your system. If not, follow the instructions [here](https://www.rust-lang.org/tools/install).
 
 2. Clone the repository and build:
@@ -108,7 +121,8 @@ alias update-shad3="update_shad3"' >> ~/.bashrc && source ~/.bashrc && shad3 --h
    cargo build --release
    ```
 
-3. The executable will be in `target\release\shad3.exe`. You can move it to a directory in your PATH or run it from its current location.
+3. The executable will be in `target
+elease\shad3.exe`. You can move it to a directory in your PATH or run it from its current location.
 
 4. Verify the installation by running:
    ```bash
