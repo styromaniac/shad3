@@ -1,8 +1,8 @@
 # SHAD3
 
-![SHAD3](https://github.com/styromaniac/shad3/raw/main/SHAD3.png?v=1)
+<img src="https://raw.githubusercontent.com/styromaniac/shad3/refs/heads/main/SHAD3.png" alt="SHAD3 logo" style="max-width: 100%; height: auto;">
 
-SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists.
+SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists, typically those made for Pi-hole. This is designed for [SHATTER](https://addons.mozilla.org/en-US/firefox/addon/shatt3r/) and similar applications or addons. Ideally you would use this for keeping secret what is being blocked. Law enforcement could use this tool for websites containing exploitative and abusive content.
 
 Set a custom path after the URL to save the output file anywhere you need to.
 
@@ -65,7 +65,7 @@ If you'd prefer to build SHAD3 from source, follow the instructions below:
 rustup isn't available to make your life easier, but the command below is. You are required to install F-Droid or (recommended for automatic updates) F-Droid Basic. Then, through either, install Termux. Open it, paste the command, and hit Enter.
 
 ```bash
-pkg update && pkg upgrade && pkg install -y wget tar rust git build-essential && wget -O shad3-src.tar.gz $(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep "tarball_url" | cut -d '"' -f 4) && tar -xzvf shad3-src.tar.gz && cd styromaniac-shad3-* && cargo build --release && mv target/release/shad3 $PREFIX/bin/ && echo -e '# Rust and shad3 environment setup\nexport PATH=$PATH:/data/data/com.termux/files/home/.cargo/bin:$PREFIX/bin\nexport TMPDIR=/data/data/com.termux/files/home/temp\nmkdir -p $TMPDIR\n# Alias for updating and upgrading packages\nalias pkgup="pkg update && pkg upgrade"\n# Function to update shad3\nupdate_shad3() { cd ~/styromaniac-shad3-* && git pull && cargo build --release && cp target/release/shad3 $PREFIX/bin/; echo "shad3 updated successfully."; }\n# Alias for updating shad3\nalias update-shad3="update_shad3"' >> ~/.bashrc && source ~/.bashrc && shad3 --help
+pkg update && pkg upgrade && pkg install -y wget tar rust git build-essential && wget -O shad3-src.tar.gz $(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep "tarball_url" | cut -d '"' -f 4) && tar -xzvf shad3-src.tar.gz && cd styromaniac-shad3-* && cargo build --release && mv target/release/shad3 $PREFIX/bin/ && echo -e '# Rust and shad3 environment setup\nexport PATH=$PATH:/data/data/com.termux/files/home/.cargo/bin:$PREFIX/bin\nexport TMPDIR=/data/data/com.termux/files/home/temp\nmkdir -p $TMPDIR\n# Alias for updating and upgrading packages\nalias pkgup="pkg update && pkg upgrade"\n# Function to update shad3\nupdate_shad3() { cd ~/styromaniac-shad3-* && git pull && cargo build --release && cp target/release/shad3 $PREFIX/bin/; echo "shad3 updated successfully."; }\n# Alias for updating shad3\nalias update-shad3="update_shad3"' >> ~/.bashrc && source ~/.bashrc && shad3
 ```
 **Note:** Do **NOT** install Termux from the Play Store as it lacks necessary functionalities.
 
