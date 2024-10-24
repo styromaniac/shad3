@@ -67,6 +67,17 @@ async fn main() -> Result<()> {
         total_lines += lines;
     }
 
+    if !Path::new(input).exists() {
+        for filename in filenames {
+            if let Err(e) = fs::remove_file(&filename) {
+                eprintln!(
+                    "Warning: Could not remove temporary file {}: {}",
+                    filename, e
+                );
+            }
+        }
+    }
+
     let hashing_rate = total_lines as f64 / total_hashing_time.as_secs_f64();
     println!("Overall hashing rate: {:.2} hashes/second", hashing_rate);
 
@@ -90,7 +101,6 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
         let padding_length = number_part.chars().take_while(|c| *c == '0').count();
 
         if let Some(start_num) = extract_number(stem) {
-            // Look backwards
             for num in (0..=start_num).rev() {
                 let new_stem = format!("{}{:0width$}", prefix, num, width = padding_length + 1);
                 let new_filename = if extension.is_empty() {
@@ -104,7 +114,6 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
                 }
             }
 
-            // Look forwards
             let mut current_num = start_num + 1;
             loop {
                 let new_stem = format!(
@@ -136,6 +145,7 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
         return Ok(vec![input.to_string()]);
     }
 
+    let temp_dir = env::temp_dir();
     let client = Client::new();
     let mut filenames = Vec::new();
 
@@ -149,12 +159,13 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
             let current_url = input.replace(&original_filename, &new_filename);
             if let Ok(response) = client.head(&current_url).send().await {
                 if response.status().is_success() {
+                    let temp_file_path = temp_dir.join(&new_filename);
                     let content = client.get(&current_url).send().await?.bytes().await?;
-                    let file = File::create(&new_filename)?;
+                    let file = File::create(&temp_file_path)?;
                     let mut writer = BufWriter::new(file);
                     writer.write_all(&content)?;
                     writer.flush()?;
-                    filenames.push(new_filename);
+                    filenames.push(temp_file_path.to_str().unwrap().to_string());
                 }
             }
         }
@@ -170,12 +181,13 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
             let current_url = input.replace(&original_filename, &new_filename);
             if let Ok(response) = client.head(&current_url).send().await {
                 if response.status().is_success() {
+                    let temp_file_path = temp_dir.join(&new_filename);
                     let content = client.get(&current_url).send().await?.bytes().await?;
-                    let file = File::create(&new_filename)?;
+                    let file = File::create(&temp_file_path)?;
                     let mut writer = BufWriter::new(file);
                     writer.write_all(&content)?;
                     writer.flush()?;
-                    filenames.push(new_filename);
+                    filenames.push(temp_file_path.to_str().unwrap().to_string());
                     current_num += 1;
                 } else {
                     break;
@@ -187,13 +199,13 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
     }
 
     if filenames.is_empty() {
+        let temp_file_path = temp_dir.join(&original_filename);
         let content = client.get(input).send().await?.bytes().await?;
-        let filename = original_filename.clone();
-        let file = File::create(&filename)?;
+        let file = File::create(&temp_file_path)?;
         let mut writer = BufWriter::new(file);
         writer.write_all(&content)?;
         writer.flush()?;
-        filenames.push(filename);
+        filenames.push(temp_file_path.to_str().unwrap().to_string());
     }
 
     filenames.sort_by_key(|a| extract_number(a));
@@ -333,6 +345,7 @@ fn write_sorted_checksums_parallel(
     let total_checksums = checksums.len();
     let chunk_size = 1_000_000;
 
+    let temp_dir = env::temp_dir();
     let writer = Arc::new(Mutex::new(BufWriter::new(File::create(output_file)?)));
     let progress_bar = ProgressBar::new(total_checksums as u64);
     progress_bar.set_style(
@@ -341,7 +354,7 @@ fn write_sorted_checksums_parallel(
             .unwrap_or_else(|_| ProgressStyle::default_bar()),
     );
 
-    let temp_files = create_sorted_temp_files(checksums, chunk_size, &progress_bar)?;
+    let temp_files = create_sorted_temp_files(checksums, chunk_size, &progress_bar, &temp_dir)?;
 
     merge_sorted_files(&temp_files, &writer, &progress_bar)?;
 
@@ -360,6 +373,7 @@ fn create_sorted_temp_files(
     checksums: &[(Vec<u8>, Vec<u8>)],
     chunk_size: usize,
     progress_bar: &ProgressBar,
+    temp_dir: &Path,
 ) -> Result<Vec<String>> {
     let mut temp_files = Vec::new();
 
@@ -367,7 +381,7 @@ fn create_sorted_temp_files(
         let mut sorted_chunk = chunk.to_vec();
         sorted_chunk.par_sort_by(|a, b| a.1.cmp(&b.1));
 
-        let temp_filename = format!("temp_sorted_{}.txt", i);
+        let temp_filename = temp_dir.join(format!("temp_sorted_{}.txt", i));
         let temp_file = File::create(&temp_filename)?;
         let mut temp_writer = BufWriter::new(temp_file);
 
@@ -376,7 +390,7 @@ fn create_sorted_temp_files(
         }
         temp_writer.flush()?;
 
-        temp_files.push(temp_filename);
+        temp_files.push(temp_filename.to_str().unwrap().to_string());
         progress_bar.inc(chunk.len() as u64);
     }
 
