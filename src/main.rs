@@ -1,5 +1,4 @@
 use anyhow::Result;
-use futures::future::join_all;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use regex::Regex;
@@ -17,17 +16,20 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_OUTPUT_FILE: &str = "checksums.txt";
 
-type DownloadResult = Result<Option<(String, Vec<u8>)>>;
 type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 || args.len() > 3 {
-        anyhow::bail!("Usage: {} <blocklist-url> [output-path]", args[0]);
+        anyhow::bail!(
+            "Usage: {} <blocklist-url-or-path> [output-path]\n\
+            Tip: The first argument can be either a URL or a local file path",
+            args[0]
+        );
     }
 
-    let url = &args[1];
+    let input = &args[1];
     let output_path = args
         .get(2)
         .map(|s| s.as_str())
@@ -35,8 +37,8 @@ async fn main() -> Result<()> {
 
     let start_time = Instant::now();
 
-    println!("Downloading file(s)...");
-    let filenames = download_files(url).await?;
+    println!("Processing input file(s)...");
+    let filenames = collect_files(input).await?;
 
     println!("Determining most common prefix across all files...");
     let prefix = find_most_common_ip_prefix_across_files(&filenames)?;
@@ -71,38 +73,90 @@ async fn main() -> Result<()> {
     println!("Writing checksums...");
     write_sorted_checksums_parallel(&all_checksums, output_path)?;
 
-    // Clean up downloaded files
-    for filename in filenames {
-        fs::remove_file(filename)?;
-    }
-
     let duration = start_time.elapsed();
     println!("Done! Total execution time: {:.2?}", duration);
     Ok(())
 }
 
-async fn download_files(base_url: &str) -> Result<Vec<String>> {
-    let client = Client::new();
-    let mut filenames_to_download = Vec::new();
+async fn collect_files(input: &str) -> Result<Vec<String>> {
+    let path = Path::new(input);
+    if path.exists() {
+        let mut files = Vec::new();
+        let base_path = path.parent().unwrap_or_else(|| Path::new(""));
+        let _original_filename = path.file_name().unwrap().to_str().unwrap();
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let (prefix, number_part) = split_filename_parts(stem);
+        let padding_length = number_part.chars().take_while(|c| *c == '0').count();
 
-    let original_filename = base_url
-        .split('/')
-        .last()
-        .unwrap_or("block.txt")
-        .to_string();
-    let (prefix, number_part) = original_filename.split_at(
-        original_filename
-            .find(char::is_numeric)
-            .unwrap_or(original_filename.len()),
-    );
+        if let Some(start_num) = extract_number(stem) {
+            // Look backwards
+            for num in (0..=start_num).rev() {
+                let new_stem = format!("{}{:0width$}", prefix, num, width = padding_length + 1);
+                let new_filename = if extension.is_empty() {
+                    new_stem
+                } else {
+                    format!("{}.{}", new_stem, extension)
+                };
+                let full_path = base_path.join(&new_filename);
+                if full_path.exists() {
+                    files.push(full_path.to_str().unwrap().to_string());
+                }
+            }
+
+            // Look forwards
+            let mut current_num = start_num + 1;
+            loop {
+                let new_stem = format!(
+                    "{}{:0width$}",
+                    prefix,
+                    current_num,
+                    width = padding_length + 1
+                );
+                let new_filename = if extension.is_empty() {
+                    new_stem
+                } else {
+                    format!("{}.{}", new_stem, extension)
+                };
+                let full_path = base_path.join(&new_filename);
+                if full_path.exists() {
+                    files.push(full_path.to_str().unwrap().to_string());
+                    current_num += 1;
+                } else {
+                    break;
+                }
+            }
+
+            files.sort_by_key(|a| extract_number(a));
+            if !files.is_empty() {
+                return Ok(files);
+            }
+        }
+
+        return Ok(vec![input.to_string()]);
+    }
+
+    let client = Client::new();
+    let mut filenames = Vec::new();
+
+    let original_filename = input.split('/').last().unwrap_or("block.txt").to_string();
+    let (prefix, number_part) = split_filename_parts(&original_filename);
     let padding_length = number_part.chars().take_while(|c| *c == '0').count();
 
-    let original_number = extract_number(&original_filename);
-
-    if let Some(start_num) = original_number {
+    if let Some(start_num) = extract_number(&original_filename) {
         for num in (0..=start_num).rev() {
             let new_filename = format!("{}{:0width$}", prefix, num, width = padding_length + 1);
-            filenames_to_download.push(new_filename);
+            let current_url = input.replace(&original_filename, &new_filename);
+            if let Ok(response) = client.head(&current_url).send().await {
+                if response.status().is_success() {
+                    let content = client.get(&current_url).send().await?.bytes().await?;
+                    let file = File::create(&new_filename)?;
+                    let mut writer = BufWriter::new(file);
+                    writer.write_all(&content)?;
+                    writer.flush()?;
+                    filenames.push(new_filename);
+                }
+            }
         }
 
         let mut current_num = start_num + 1;
@@ -113,11 +167,15 @@ async fn download_files(base_url: &str) -> Result<Vec<String>> {
                 current_num,
                 width = padding_length + 1
             );
-            let current_url = base_url.replace(&original_filename, &new_filename);
-
-            if let Ok(response) = Client::new().head(&current_url).send().await {
+            let current_url = input.replace(&original_filename, &new_filename);
+            if let Ok(response) = client.head(&current_url).send().await {
                 if response.status().is_success() {
-                    filenames_to_download.push(new_filename);
+                    let content = client.get(&current_url).send().await?.bytes().await?;
+                    let file = File::create(&new_filename)?;
+                    let mut writer = BufWriter::new(file);
+                    writer.write_all(&content)?;
+                    writer.flush()?;
+                    filenames.push(new_filename);
                     current_num += 1;
                 } else {
                     break;
@@ -126,50 +184,26 @@ async fn download_files(base_url: &str) -> Result<Vec<String>> {
                 break;
             }
         }
-    } else {
-        filenames_to_download.push(original_filename.clone());
     }
 
-    let original_filename_clone = original_filename.clone();
-    let download_futures = filenames_to_download.into_iter().map(|filename| {
-        let client = client.clone();
-        let base_url = base_url.to_string();
-        let original_filename = original_filename_clone.clone();
-        async move {
-            let current_url = base_url.replace(&original_filename, &filename);
-            println!("Attempting to download: {}", current_url);
-
-            let response = client.get(&current_url).send().await?;
-            if !response.status().is_success() {
-                println!("File not found: {}", current_url);
-                return Ok(None);
-            }
-
-            println!("Downloading: {}", current_url);
-            let content = response.bytes().await?;
-            Ok(Some((filename, content.to_vec())))
-        }
-    });
-
-    let download_results: Vec<DownloadResult> = join_all(download_futures).await;
-    let mut downloaded_files = Vec::new();
-    for result in download_results {
-        if let Some((filename, content)) = result? {
-            let file = File::create(&filename)?;
-            let mut writer = BufWriter::new(file);
-            writer.write_all(&content)?;
-            writer.flush()?;
-            downloaded_files.push(filename);
-        }
+    if filenames.is_empty() {
+        let content = client.get(input).send().await?.bytes().await?;
+        let filename = original_filename.clone();
+        let file = File::create(&filename)?;
+        let mut writer = BufWriter::new(file);
+        writer.write_all(&content)?;
+        writer.flush()?;
+        filenames.push(filename);
     }
 
-    if downloaded_files.is_empty() {
-        return Err(anyhow::anyhow!("No files were downloaded"));
-    }
+    filenames.sort_by_key(|a| extract_number(a));
+    Ok(filenames)
+}
 
-    downloaded_files.sort_by_key(|a| extract_number(a));
-
-    Ok(downloaded_files)
+fn split_filename_parts(filename: &str) -> (String, String) {
+    let pos = filename.find(char::is_numeric).unwrap_or(filename.len());
+    let (prefix, number_part) = filename.split_at(pos);
+    (prefix.to_string(), number_part.to_string())
 }
 
 fn extract_number(filename: &str) -> Option<u32> {

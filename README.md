@@ -4,18 +4,11 @@
 
 SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists, typically those made for Pi-hole. This is designed for [SHATTER](https://addons.mozilla.org/en-US/firefox/addon/shatt3r/) and similar applications or addons. Ideally you would use this for keeping secret what is being blocked. Law enforcement could use this tool for websites containing exploitative and abusive content.
 
-Set a custom path after the URL to save the output file anywhere you need to.
+Set a custom path after the first argument to save the output file anywhere you need to.
 
 ## Example:
-
-### Termux, Linux, and macOS:
 ```bash
-./shad3 http://blocklists.io/block04.txt /var/www/html/pornSites.txt
-```
-
-### Windows:
-```bash
-shad3.exe http://blocklists.io/block04.txt Documents\pornQueries.txt
+shad3 <blocklist-url-or-path> [output-path]
 ```
 
 ## Installation
@@ -28,7 +21,7 @@ Pre-built binaries are available in the [releases](https://github.com/styromania
 3. Move the binary to a directory in your PATH (optional).
 4. Verify the installation by running:
     ```bash
-    shad3 --help
+    shad3
     ```
 
 ### From Cargo
@@ -39,7 +32,7 @@ Pre-built binaries are available in the [releases](https://github.com/styromania
     ```
 3. Once installed, you can use SHAD3 from the command line:
     ```bash
-    shad3 --help
+    shad3
     ```
 
 ### From Source (Optional)
@@ -58,7 +51,7 @@ If you'd prefer to build SHAD3 from source, follow the instructions below:
     ```
 4. Verify the installation by running:
     ```bash
-    shad3 --help
+    shad3
     ```
 
 ### Termux
@@ -86,7 +79,7 @@ pkg update && pkg upgrade && pkg install -y wget tar rust git build-essential &&
     ```
 4. Verify the installation by running:
     ```bash
-    shad3 --help
+    shad3
     ```
 
 ### Windows
@@ -100,7 +93,7 @@ pkg update && pkg upgrade && pkg install -y wget tar rust git build-essential &&
 3. The executable will be in `target\release\shad3.exe`. You can move it to a directory in your PATH or run it from its current location.
 4. Verify the installation by running:
     ```bash
-    shad3 --help
+    shad3
     ```
 
 ## Contributing
