@@ -9,14 +9,22 @@ use std::collections::{BinaryHeap, HashMap};
 use std::env;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use uuid::Uuid;
 
 const DEFAULT_OUTPUT_FILE: &str = "checksums.txt";
 
 type ProcessResult = Result<(Vec<(Vec<u8>, Vec<u8>)>, Duration, usize)>;
+
+fn create_temp_dir() -> Result<PathBuf> {
+    let temp_base = env::temp_dir();
+    let unique_dir = temp_base.join(format!("shad3_{}", Uuid::new_v4()));
+    fs::create_dir_all(&unique_dir)?;
+    Ok(unique_dir)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -29,67 +37,66 @@ async fn main() -> Result<()> {
         );
     }
 
-    let input = &args[1];
-    let output_path = args
-        .get(2)
-        .map(|s| s.as_str())
-        .unwrap_or(DEFAULT_OUTPUT_FILE);
+    let temp_dir = create_temp_dir()?;
+    let cleanup_temp_dir = temp_dir.clone();
 
-    let start_time = Instant::now();
+    let result = async {
+        let input = &args[1];
+        let output_path = args
+            .get(2)
+            .map(|s| s.as_str())
+            .unwrap_or(DEFAULT_OUTPUT_FILE);
 
-    println!("Processing input file(s)...");
-    let filenames = collect_files(input).await?;
+        let start_time = Instant::now();
 
-    println!("Determining most common prefix across all files...");
-    let prefix = find_most_common_ip_prefix_across_files(&filenames)?;
-    match &prefix {
-        Some(p) => {
-            println!(
-                "Detected IP prefix: '{}' ({} parts)",
-                p,
-                p.split('.').count()
-            );
-            println!("This prefix will be removed from matching lines before hashing.");
-        }
-        None => println!("No common IP prefix detected. Processing all lines without removal."),
-    }
+        println!("Processing input file(s)...");
+        let filenames = collect_files(input, &temp_dir).await?;
 
-    let mut all_checksums = Vec::new();
-    let mut total_hashing_time = Duration::new(0, 0);
-    let mut total_lines = 0;
-
-    for filename in &filenames {
-        println!("Processing file: {}", filename);
-        let (checksums, hashing_time, lines) = process_file_parallel(filename, prefix.as_deref())?;
-
-        all_checksums.extend(checksums);
-        total_hashing_time += hashing_time;
-        total_lines += lines;
-    }
-
-    if !Path::new(input).exists() {
-        for filename in filenames {
-            if let Err(e) = fs::remove_file(&filename) {
-                eprintln!(
-                    "Warning: Could not remove temporary file {}: {}",
-                    filename, e
+        println!("Determining most common prefix across all files...");
+        let prefix = find_most_common_ip_prefix_across_files(&filenames)?;
+        match &prefix {
+            Some(p) => {
+                println!(
+                    "Detected IP prefix: '{}' ({} parts)",
+                    p,
+                    p.split('.').count()
                 );
+                println!("This prefix will be removed from matching lines before hashing.");
             }
+            None => println!("No common IP prefix detected. Processing all lines without removal."),
         }
+
+        let mut all_checksums = Vec::new();
+        let mut total_hashing_time = Duration::new(0, 0);
+        let mut total_lines = 0;
+
+        for filename in &filenames {
+            println!("Processing file: {}", filename);
+            let (checksums, hashing_time, lines) =
+                process_file_parallel(filename, prefix.as_deref())?;
+
+            all_checksums.extend(checksums);
+            total_hashing_time += hashing_time;
+            total_lines += lines;
+        }
+
+        let hashing_rate = total_lines as f64 / total_hashing_time.as_secs_f64();
+        println!("Overall hashing rate: {:.2} hashes/second", hashing_rate);
+
+        println!("Writing checksums...");
+        write_sorted_checksums_parallel(&all_checksums, output_path, &temp_dir)?;
+
+        let duration = start_time.elapsed();
+        println!("Done! Total execution time: {:.2?}", duration);
+        Ok(())
     }
+    .await;
 
-    let hashing_rate = total_lines as f64 / total_hashing_time.as_secs_f64();
-    println!("Overall hashing rate: {:.2} hashes/second", hashing_rate);
-
-    println!("Writing checksums...");
-    write_sorted_checksums_parallel(&all_checksums, output_path)?;
-
-    let duration = start_time.elapsed();
-    println!("Done! Total execution time: {:.2?}", duration);
-    Ok(())
+    fs::remove_dir_all(cleanup_temp_dir)?;
+    result
 }
 
-async fn collect_files(input: &str) -> Result<Vec<String>> {
+async fn collect_files(input: &str, temp_dir: &Path) -> Result<Vec<String>> {
     let path = Path::new(input);
     if path.exists() {
         let mut files = Vec::new();
@@ -145,7 +152,6 @@ async fn collect_files(input: &str) -> Result<Vec<String>> {
         return Ok(vec![input.to_string()]);
     }
 
-    let temp_dir = env::temp_dir();
     let client = Client::new();
     let mut filenames = Vec::new();
 
@@ -340,12 +346,12 @@ fn process_file_parallel(filename: &str, prefix: Option<&str>) -> ProcessResult 
 fn write_sorted_checksums_parallel(
     checksums: &[(Vec<u8>, Vec<u8>)],
     output_file: &str,
+    temp_dir: &Path,
 ) -> Result<()> {
     println!("Sorting and writing checksums...");
     let total_checksums = checksums.len();
     let chunk_size = 1_000_000;
 
-    let temp_dir = env::temp_dir();
     let writer = Arc::new(Mutex::new(BufWriter::new(File::create(output_file)?)));
     let progress_bar = ProgressBar::new(total_checksums as u64);
     progress_bar.set_style(
@@ -354,17 +360,13 @@ fn write_sorted_checksums_parallel(
             .unwrap_or_else(|_| ProgressStyle::default_bar()),
     );
 
-    let temp_files = create_sorted_temp_files(checksums, chunk_size, &progress_bar, &temp_dir)?;
+    let temp_files = create_sorted_temp_files(checksums, chunk_size, &progress_bar, temp_dir)?;
 
     merge_sorted_files(&temp_files, &writer, &progress_bar)?;
 
     writer.lock().unwrap().flush()?;
     progress_bar.finish_with_message("Finished writing checksums");
     println!("\nFinished writing checksums to {}", output_file);
-
-    for temp_file in temp_files {
-        fs::remove_file(temp_file)?;
-    }
 
     Ok(())
 }
