@@ -1,3 +1,4 @@
+
 # SHAD3
 
 <img src='./SHAD3.png' alt='SHAD3 logo' style='max-width: 100%; height: auto;'>
@@ -16,12 +17,12 @@ Pre-built binaries are available in the [releases](https://github.com/styromania
 
 #### Linux Binary
 ```bash
-ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-linux_x86_64.tar.gz ;;   'aarch64') BIN=shad3-linux_aarch64.tar.gz ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && tar -xzf $BIN && sudo mv shad3 /usr/local/bin && rm -rf $BIN
+ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-linux_x86_64.tar.gz ;;   'aarch64') BIN=shad3-linux_aarch64.tar.gz ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && tar -xzf $BIN && chmod +x shad3 && sudo mv shad3 /usr/local/bin && rm -rf $BIN
 ```
 
 #### macOS Binary
 ```bash
-ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-macos_x86_64.tar.gz ;;   'aarch64') BIN=shad3-macos_aarch64.tar.gz ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && tar -xzf $BIN && sudo mv shad3 /usr/local/bin && rm -rf $BIN
+ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-macos_x86_64.tar.gz ;;   'aarch64') BIN=shad3-macos_aarch64.tar.gz ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && tar -xzf $BIN && chmod +x shad3 && sudo mv shad3 /usr/local/bin && rm -rf $BIN
 ```
 
 #### Windows Binary (PowerShell)
@@ -31,7 +32,7 @@ $ARCH = (Get-WmiObject Win32_Processor).Architecture; if ($ARCH -eq 9) { $BIN = 
 
 #### Termux Binary
 ```bash
-ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-termux_x86_64.zip ;;   'aarch64') BIN=shad3-termux_aarch64.zip ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && unzip $BIN && mv shad3 ~/../usr/bin && rm -rf $BIN
+ARCH=$(uname -m) && case $ARCH in   'x86_64') BIN=shad3-termux_x86_64.zip ;;   'aarch64') BIN=shad3-termux_aarch64.zip ;;   *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && unzip $BIN && chmod +x shad3 && mv shad3 ~/../usr/bin && rm -rf $BIN
 ```
 
 ### Installation from Source
@@ -40,12 +41,12 @@ These one-liners download, extract, build, install, and clean up for each enviro
 
 #### Linux Source
 ```bash
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o shad3_latest.tar.gz && tar -xzf shad3_latest.tar.gz && cd styromaniac-shad3* && cargo build --release && sudo mv target/release/shad3 /usr/local/bin && cd .. && rm -rf styromaniac-shad3* shad3_latest.tar.gz
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o ~/shad3_latest.tar.gz && tar -xzf ~/shad3_latest.tar.gz && cd ~/styromaniac-shad3* && cargo build --release && chmod +x target/release/shad3 && sudo mv target/release/shad3 /usr/local/bin && cd ~ && rm -rf ~/styromaniac-shad3* ~/shad3_latest.tar.gz
 ```
 
 #### macOS Source
 ```bash
-LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o shad3_latest.tar.gz && tar -xzf shad3_latest.tar.gz && cd styromaniac-shad3* && cargo build --release && sudo mv target/release/shad3 /usr/local/bin && cd .. && rm -rf styromaniac-shad3* shad3_latest.tar.gz
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o ~/shad3_latest.tar.gz && tar -xzf ~/shad3_latest.tar.gz && cd ~/styromaniac-shad3* && cargo build --release && chmod +x target/release/shad3 && sudo mv target/release/shad3 /usr/local/bin && cd ~ && rm -rf ~/styromaniac-shad3* ~/shad3_latest.tar.gz
 ```
 
 #### Windows Source (PowerShell)
@@ -55,7 +56,7 @@ $LATEST_RELEASE = Invoke-RestMethod https://api.github.com/repos/styromaniac/sha
 
 #### Termux Source
 ```bash
-pkg install -y rust && LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o shad3_latest.tar.gz && tar -xzf shad3_latest.tar.gz && cd styromaniac-shad3* && cargo build --release && mv target/release/shad3 ~/../usr/bin && cd .. && rm -rf styromaniac-shad3* shad3_latest.tar.gz
+pkg update && pkg install -y rust && LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE -o ~/shad3_latest.tar.gz && tar -xzf ~/shad3_latest.tar.gz && cd ~/styromaniac-shad3* && cargo build --release && chmod +x target/release/shad3 && mv target/release/shad3 ~/../usr/bin && cd ~ && rm -rf ~/styromaniac-shad3* ~/shad3_latest.tar.gz
 ```
 
 ### Verification
