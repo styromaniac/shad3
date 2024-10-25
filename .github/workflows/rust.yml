@@ -7,7 +7,7 @@ on:
     tags: ['v*.*.*']
   pull_request:
     branches: [main]
-  workflow_dispatch: true
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -19,9 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -31,9 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -43,9 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
           components: rustfmt
       - uses: actions-rs/cargo@v1
         with:
@@ -57,9 +63,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
           components: clippy
       - uses: actions-rs/cargo@v1
         with:
@@ -94,19 +102,16 @@ jobs:
             target: aarch64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
+          override: true
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: >-
-            ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
+          use-cross: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
           command: build
-          args: >-
-            --release
-            --target ${{ matrix.target }}
-            --bin shad3
+          args: --release --target ${{ matrix.target }} --bin shad3
       - name: Prepare artifacts
         shell: pwsh
         run: |
@@ -120,8 +125,7 @@ jobs:
             $ARTIFACT_NAME = "shad3.exe"
             $ARCHIVE_NAME = "shad3-${OS}_${{ matrix.arch }}.zip"
             Copy-Item "$TARGET_DIR\$EXE_FILE" "artifacts\$ARTIFACT_NAME"
-            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" `
-              -DestinationPath "artifacts\$ARCHIVE_NAME"
+            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" -DestinationPath "artifacts\$ARCHIVE_NAME"
           } else {
             $BIN_FILE = "shad3"
             $ARTIFACT_NAME = "shad3"
@@ -144,9 +148,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
           toolchain: stable
+          override: true
       - run: cargo install cargo-edit
       - name: Get current version
         id: version
@@ -163,6 +169,14 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: cargo publish
+      - name: Verify published version
+        run: |
+          sleep 15
+          SEARCH_RESULT=$(cargo search shad3 --limit 1)
+          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
+          if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
+            echo "Version mismatch" && exit 1
+          fi
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
