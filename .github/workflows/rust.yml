@@ -109,9 +109,13 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1
         with:
-          use-cross: ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
+          use-cross: >-
+            ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
           command: build
-          args: --release --target ${{ matrix.target }} --bin shad3
+          args: >-
+            --release
+            --target ${{ matrix.target }}
+            --bin shad3
       - name: Prepare artifacts
         shell: pwsh
         run: |
@@ -125,7 +129,8 @@ jobs:
             $ARTIFACT_NAME = "shad3.exe"
             $ARCHIVE_NAME = "shad3-${OS}_${{ matrix.arch }}.zip"
             Copy-Item "$TARGET_DIR\$EXE_FILE" "artifacts\$ARTIFACT_NAME"
-            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" -DestinationPath "artifacts\$ARCHIVE_NAME"
+            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" `
+              -DestinationPath "artifacts\$ARCHIVE_NAME"
           } else {
             $BIN_FILE = "shad3"
             $ARTIFACT_NAME = "shad3"
@@ -157,7 +162,8 @@ jobs:
       - name: Get current version
         id: version
         run: |
-          VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          VERSION=$(grep '^version = ' Cargo.toml | \
+            sed -E 's/version = "(.*)"/\1/')
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
       - name: Create and push tag
         run: |
@@ -173,7 +179,8 @@ jobs:
         run: |
           sleep 15
           SEARCH_RESULT=$(cargo search shad3 --limit 1)
-          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
+          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | \
+            sed -nE 's/^[^"]*"//; s/".*//p')
           if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
             echo "Version mismatch" && exit 1
           fi
