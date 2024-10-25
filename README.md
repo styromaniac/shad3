@@ -1,109 +1,122 @@
 # SHAD3
 
-<img src="https://raw.githubusercontent.com/styromaniac/shad3/refs/heads/main/SHAD3.png" alt="SHAD3 logo" style="max-width: 100%; height: auto;">
+<img src='./SHAD3.png' alt='SHAD3 logo' style='max-width: 100%; height: auto;'>
 
-SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists, typically those made for Pi-hole. This is designed for [SHATTER](https://addons.mozilla.org/en-US/firefox/addon/shatt3r/) and similar applications or addons. Ideally you would use this for keeping secret what is being blocked. Law enforcement could use this tool for websites containing exploitative and abusive content.
+SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists, typically those made for Pi-hole. This is designed for [SHATTER](https://addons.mozilla.org/en-US/firefox/addon/shatt3r/) and similar applications or addons. Ideally, it serves to maintain the confidentiality of blocked content, which may include exploitative or abusive websites.
 
-Set a custom path after the first argument to save the output file anywhere you need to.
-
-## Example:
+## Example Usage
 ```bash
 shad3 <blocklist-url-or-path> [output-path]
 ```
 
-## Installation
+## Installation Options with Architecture Detection
 
-### From Binary (Recommended)
-Pre-built binaries are available in the [releases](https://github.com/styromaniac/shad3/releases) section. You can download the appropriate archive for your operating system, extract it, and start using SHAD3 without the need to build from source.
+### Binary Installation (Recommended)
+Pre-built binaries are available in the [releases](https://github.com/styromaniac/shad3/releases) section. The following one-liners automatically detect the CPU architecture and download the correct binary:
 
-1. Download the binary release for your platform from the [releases](https://github.com/styromaniac/shad3/releases) section.
-2. Extract the contents of the archive.
-3. Move the binary to a directory in your PATH (optional).
-4. Verify the installation by running:
-    ```bash
-    shad3
-    ```
-
-### From Cargo
-1. Ensure you have Rust installed on your system. If not, follow the instructions [here](https://www.rust-lang.org/tools/install).
-2. Install SHAD3 via Cargo by running:
-    ```bash
-    cargo install shad3
-    ```
-3. Once installed, you can use SHAD3 from the command line:
-    ```bash
-    shad3
-    ```
-
-### From Source (Optional)
-If you'd prefer to build SHAD3 from source, follow the instructions below:
-
-1. Ensure you have Rust installed on your system. If not, follow the instructions [here](https://www.rust-lang.org/tools/install).
-2. Clone the repository and build:
-    ```bash
-    git clone https://github.com/styromaniac/shad3.git
-    cd shad3
-    cargo build --release
-    ```
-3. Move the binary to a directory in your PATH:
-    ```bash
-    sudo mv target/release/shad3 /usr/local/bin/
-    ```
-4. Verify the installation by running:
-    ```bash
-    shad3
-    ```
-
-### Termux
-rustup isn't available to make your life easier, but the command below is. You are required to install F-Droid or (recommended for automatic updates) F-Droid Basic. Then, through either, install Termux. Open it, paste the command, and hit Enter.
-
+#### Linux Binary
 ```bash
-pkg update && pkg upgrade && pkg install -y wget tar rust git build-essential && wget -O shad3-src.tar.gz $(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | grep "tarball_url" | cut -d '"' -f 4) && tar -xzvf shad3-src.tar.gz && cd styromaniac-shad3-* && cargo build --release && mv target/release/shad3 $PREFIX/bin/ && echo -e '# Rust and shad3 environment setup\nexport PATH=$PATH:/data/data/com.termux/files/home/.cargo/bin:$PREFIX/bin\nexport TMPDIR=/data/data/com.termux/files/home/temp\nmkdir -p $TMPDIR\n# Alias for updating and upgrading packages\nalias pkgup="pkg update && pkg upgrade"\n# Function to update shad3\nupdate_shad3() { cd ~/styromaniac-shad3-* && git pull && cargo build --release && cp target/release/shad3 $PREFIX/bin/; echo "shad3 updated successfully."; }\n# Alias for updating shad3\nalias update-shad3="update_shad3"' >> ~/.bashrc && source ~/.bashrc && shad3
+ARCH=$(uname -m) && case $ARCH in \
+  'x86_64') BIN=shad3-linux_x86_64.tar.gz ;; \
+  'aarch64') BIN=shad3-linux_aarch64.tar.gz ;; \
+  *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; \
+esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && \
+tar -xzf $BIN && sudo mv shad3 /usr/local/bin && cd .. && rm -rf $(basename $PWD)
 ```
-**Note:** Do **NOT** install Termux from the Play Store as it lacks necessary functionalities.
 
-### Linux and macOS
-1. Install Rust if you haven't already:
-    ```bash
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-    ```
-2. Clone the repository and build:
-    ```bash
-    git clone https://github.com/styromaniac/shad3.git
-    cd shad3
-    cargo build --release
-    ```
-3. Move the binary to a directory in your PATH:
-    ```bash
-    sudo mv target/release/shad3 /usr/local/bin/
-    ```
-4. Verify the installation by running:
-    ```bash
-    shad3
-    ```
+#### macOS Binary
+```bash
+ARCH=$(uname -m) && case $ARCH in \
+  'x86_64') BIN=shad3-macos_x86_64.tar.gz ;; \
+  'aarch64') BIN=shad3-macos_aarch64.tar.gz ;; \
+  *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; \
+esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && \
+tar -xzf $BIN && sudo mv shad3 /usr/local/bin && cd .. && rm -rf $(basename $PWD)
+```
 
-### Windows
-1. Install Rust from [Rust's official website](https://www.rust-lang.org/tools/install).
-2. Open Command Prompt or PowerShell and run:
-    ```bash
-    git clone https://github.com/styromaniac/shad3.git
-    cd shad3
-    cargo build --release
-    ```
-3. The executable will be in `target\release\shad3.exe`. You can move it to a directory in your PATH or run it from its current location.
-4. Verify the installation by running:
-    ```bash
-    shad3
-    ```
+#### Windows Binary (PowerShell)
+```powershell
+$ARCH = (Get-WmiObject Win32_Processor).Architecture; \
+if ($ARCH -eq 9) { $BIN = 'shad3-windows_x86_64.zip' } elseif ($ARCH -eq 5) { $BIN = 'shad3-windows_aarch64.zip' } \
+else { Write-Host 'Unsupported architecture: $ARCH' -ForegroundColor Red; exit } \
+Invoke-WebRequest -Uri https://github.com/styromaniac/shad3/releases/latest/download/$BIN -OutFile $BIN; \
+Expand-Archive -Path $BIN -DestinationPath .; Move-Item -Path .\shad3.exe -Destination $env:ProgramFiles\shad3.exe; \
+cd ..; Remove-Item -Recurse -Force (Get-Location)
+```
 
-## Contributing
+#### Termux Binary
+```bash
+ARCH=$(uname -m) && case $ARCH in \
+  'x86_64') BIN=shad3-termux_x86_64.zip ;; \
+  'aarch64') BIN=shad3-termux_aarch64.zip ;; \
+  *) echo 'Unsupported architecture: $ARCH' && exit 1 ;; \
+esac && curl -LO https://github.com/styromaniac/shad3/releases/latest/download/$BIN && \
+unzip $BIN && mv shad3 ~/../usr/bin && cd .. && rm -rf $(basename $PWD)
+```
 
-Contributions are welcome! Please fork the repository and submit a pull request for any enhancements or bug fixes.
+### Installation from Source
 
-## License
+If you'd like to compile SHAD3 from source, use the following one-liners for each environment. The source code is dynamically fetched from the latest release:
 
-This project is licensed under the [GNU General Public License v3.0](LICENSE).
+#### Linux Source (with package manager detection)
+```bash
+detect_pkg_manager() { \
+  if command -v apt-get &>/dev/null; then \
+    sudo apt-get update && sudo apt-get install -y build-essential ;; \
+  elif command -v dnf &>/dev/null; then \
+    sudo dnf groupinstall 'Development Tools' ;; \
+  elif command -v pacman &>/dev/null; then \
+    sudo pacman -Sy --noconfirm base-devel ;; \
+  elif command -v zypper &>/dev/null; then \
+    sudo zypper install -t pattern devel_basis ;; \
+  else \
+    echo 'Unsupported distribution. Please install the required development tools manually.'; exit 1 ;; \
+  fi \
+} \
+detect_pkg_manager && LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | \
+grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE | tar -xz && cd shad3-* && \
+cargo build --release && sudo mv target/release/shad3 /usr/local/bin && cd .. && rm -rf shad3-* 
+```
 
-## Support
+#### macOS Source
+```bash
+LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | \
+grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE | tar -xz && cd shad3-* && \
+cargo build --release && sudo mv target/release/shad3 /usr/local/bin && cd .. && rm -rf shad3-* 
+```
 
-For support or inquiries, please open an issue on the [GitHub repository](https://github.com/styromaniac/shad3/issues).
+#### Windows Source (PowerShell)
+```powershell
+$LATEST_RELEASE = Invoke-RestMethod https://api.github.com/repos/styromaniac/shad3/releases/latest | \
+ForEach-Object { $_.zipball_url }; \
+Invoke-WebRequest -Uri $LATEST_RELEASE -OutFile latest.zip; Expand-Archive -Path latest.zip -DestinationPath .; \
+cd shad3-*; cargo build --release; Move-Item -Path .\target\release\shad3.exe -Destination $env:ProgramFiles\shad3.exe; \
+cd ..; Remove-Item -Recurse -Force .\shad3-* latest.zip
+```
+
+#### Termux Source
+```bash
+pkg install -y rust && LATEST_RELEASE=$(curl -s https://api.github.com/repos/styromaniac/shad3/releases/latest | \
+grep tarball_url | cut -d '"' -f 4) && curl -L $LATEST_RELEASE | tar -xz && cd shad3-* && \
+cargo build --release && mv target/release/shad3 ~/../usr/bin && cd .. && rm -rf shad3-* 
+```
+
+### Verification
+After installation, verify with:
+```bash
+shad3
+```
+
+## Platform Compatibility
+
+SHAD3 is compatible with the following:
+- **Operating Systems**: Linux, macOS, Windows, Termux (Android/ChromeOS)
+- **Architectures**: x86-64, ARM64
+
+## Troubleshooting
+
+If you encounter any issues during installation or use, please check:
+- Ensure all dependencies and build tools are installed (see above for platform-specific tools).
+- Verify the binary is added to your PATH if using a direct download.
+- For cargo-related issues, consult the [Rust documentation](https://doc.rust-lang.org/cargo/).
+
