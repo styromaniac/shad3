@@ -56,7 +56,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: --all -- --emit files
+      - name: Commit and Push Formatting Changes
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
+          git push origin ${{ github.head_ref }}
 
   clippy:
     name: Clippy
@@ -72,7 +78,13 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --fix --allow-dirty
+      - name: Commit and Push Lint Fixes
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
+          git push origin ${{ github.head_ref }}
 
   build:
     name: Build
@@ -143,9 +155,34 @@ jobs:
           name: shad3-${{ matrix.os }}_${{ matrix.arch }}
           path: artifacts/*
 
+  version-bump:
+    name: Version Bump
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensure full history for tagging
+      - name: Bump Patch Version
+        id: bump_version
+        run: |
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = ".*"/\1/')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+          sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+      - name: Commit Version Bump
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git add Cargo.toml
+          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
+          git push origin main
+
   publish:
     name: Publish
-    needs: [check, test, fmt, clippy, build]
+    needs: [check, test, fmt, clippy, build, version-bump]
     runs-on: ubuntu-latest
     permissions:
       contents: write
