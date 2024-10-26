@@ -62,11 +62,13 @@ jobs:
           command: fmt
           args: --all -- --emit files
       - name: Commit and Push Formatting Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
-          git push origin ${{ github.head_ref }}
+          git push origin ${{ github.ref }}
 
   clippy:
     name: Clippy
@@ -84,11 +86,13 @@ jobs:
           command: clippy
           args: --fix --allow-dirty
       - name: Commit and Push Lint Fixes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
-          git push origin ${{ github.head_ref }}
+          git push origin ${{ github.ref }}
 
   build:
     name: Build
@@ -177,6 +181,8 @@ jobs:
           sed -i "s/^version = \"$CURRENT_VERSION\"/version = \"$NEW_VERSION\"/" Cargo.toml
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
       - name: Commit Version Bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
@@ -207,6 +213,8 @@ jobs:
             sed -E 's/version = "(.*)"/\1/')
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
       - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
