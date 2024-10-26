@@ -67,6 +67,7 @@ jobs:
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
           git push origin ${{ github.ref }}
 
@@ -91,6 +92,7 @@ jobs:
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
           git push origin ${{ github.ref }}
 
@@ -186,6 +188,7 @@ jobs:
         run: |
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
           git add Cargo.toml
           git commit -m "Bump version to ${{ env.NEW_VERSION }}"
           git push origin main
