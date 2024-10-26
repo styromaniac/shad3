@@ -1,16 +1,9 @@
 ---
-name: Rust CI and Publish
+name: Dependency Update
 
 on:
-  push:
-    branches: [main]
-    tags: ['v*.*.*']
-    paths:
-      - '**.yml'
-      - '**.yaml'
-      - 'Cargo.toml'
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
   workflow_dispatch:
 
 env:
@@ -18,6 +11,38 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Run Cargo Update
+        run: cargo update
+      - name: Check for Changes in Cargo.lock
+        run: |
+          if git diff --quiet Cargo.lock; then
+            echo "No dependency updates found."
+            exit 0
+          else
+            echo "Dependencies updated."
+          fi
+      - name: Commit and Push Dependency Updates
+        if: success()  # Runs only if changes are detected
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          git add Cargo.lock
+          git commit -m "Update dependencies"
+          git push origin ${{ github.ref }}
+
   check:
     name: Check
     runs-on: ubuntu-latest
@@ -165,42 +190,9 @@ jobs:
           name: shad3-${{ matrix.os }}_${{ matrix.arch }}
           path: artifacts/*
 
-  version-bump:
-    name: Version Bump
-    runs-on: ubuntu-latest
-    needs: [fmt, clippy]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Increment Patch Version
-        id: bump_version
-        run: |
-          if [[ $(grep '^version = ' Cargo.toml) =~ version\ =\ \"([0-9]+)\.([0-9]+)\.([0-9]+)\" ]]; then
-            MAJOR=${BASH_REMATCH[1]}
-            MINOR=${BASH_REMATCH[2]}
-            PATCH=${BASH_REMATCH[3]}
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          else
-            echo "Version pattern not found" && exit 1
-          fi
-      - name: Commit Version Bump
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git add Cargo.toml
-          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
-          git push origin main
-
   publish:
     name: Publish
-    needs: [check, test, fmt, clippy, build, version-bump]
+    needs: [update-dependencies, check, test, fmt, clippy, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
