@@ -1,5 +1,5 @@
 ---
-name: Dependency Update
+name: Rust CI
 
 on:
   schedule:
@@ -32,7 +32,7 @@ jobs:
             echo "Dependencies updated."
           fi
       - name: Commit and Push Dependency Updates
-        if: success()  # Runs only if changes are detected
+        if: success()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -123,8 +123,9 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         arch: [x86_64, aarch64]
@@ -147,44 +148,65 @@ jobs:
           - os: windows-latest
             arch: aarch64
             target: aarch64-pc-windows-msvc
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-linux-android
+          - os: ubuntu-latest
+            arch: aarch64
+            target: aarch64-linux-android
     steps:
       - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          use-cross: >-
-            ${{ matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64' }}
-          command: build
-          args: >-
-            --release
-            --target ${{ matrix.target }}
-            --bin shad3
-      - name: Prepare artifacts
-        shell: pwsh
+
+      - name: Install Cross (for cross-compilation)
+        if: |
+          endsWith(matrix.target, 'linux-android') || (matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64')
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build with Cargo or Cross
         run: |
-          New-Item -Path artifacts -ItemType Directory -Force
-          $TARGET_DIR = "target/${{ matrix.target }}/release"
-          $OS = if ("${{ matrix.os }}" -eq "ubuntu-latest") { "linux" } `
-                elseif ("${{ matrix.os }}" -eq "macos-latest") { "macos" } `
-                else { "windows" }
-          if ($OS -eq "windows") {
-            $EXE_FILE = "shad3.exe"
-            $ARTIFACT_NAME = "shad3.exe"
-            $ARCHIVE_NAME = "shad3-${OS}_${{ matrix.arch }}.zip"
-            Copy-Item "$TARGET_DIR\$EXE_FILE" "artifacts\$ARTIFACT_NAME"
-            Compress-Archive -Path "artifacts\$ARTIFACT_NAME" `
-              -DestinationPath "artifacts\$ARCHIVE_NAME"
-          } else {
-            $BIN_FILE = "shad3"
-            $ARTIFACT_NAME = "shad3"
-            $ARCHIVE_NAME = "shad3-${OS}_${{ matrix.arch }}.tar.gz"
-            Copy-Item "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
-            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $ARTIFACT_NAME
-          }
+          if [[ "${{ endsWith(matrix.target, 'linux-android') || (matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64') }}" == "true" ]]; then
+            cross build --release --target ${{ matrix.target }} --bin shad3
+          else
+            cargo build --release --target ${{ matrix.target }} --bin shad3
+          fi
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts
+          TARGET_DIR="target/${{ matrix.target }}/release"
+          if [[ "${{ matrix.target }}" == *"linux-android" ]]; then
+            BIN_FILE="shad3"
+            ARCHIVE_NAME="shad3-termux_${{ matrix.arch }}.zip"
+            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
+            cd artifacts
+            zip "$ARCHIVE_NAME" "$BIN_FILE"
+            cd ..
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            BIN_FILE="shad3"
+            ARCHIVE_NAME="shad3-linux_${{ matrix.arch }}.tar.gz"
+            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
+            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $BIN_FILE
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            BIN_FILE="shad3"
+            ARCHIVE_NAME="shad3-macos_${{ matrix.arch }}.tar.gz"
+            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
+            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $BIN_FILE
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            EXE_FILE="shad3.exe"
+            ARCHIVE_NAME="shad3-windows_${{ matrix.arch }}.zip"
+            cp "$TARGET_DIR\\$EXE_FILE" "artifacts\\$EXE_FILE"
+            cd artifacts
+            zip "$ARCHIVE_NAME" "$EXE_FILE"
+            cd ..
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: shad3-${{ matrix.os }}_${{ matrix.arch }}
@@ -235,8 +257,7 @@ jobs:
         run: |
           sleep 15
           SEARCH_RESULT=$(cargo search shad3 --limit 1)
-          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | \
-            sed -nE 's/^[^"]*"//; s/".*//p')
+          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
           if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
             echo "Version mismatch" && exit 1
           fi
@@ -245,10 +266,10 @@ jobs:
         with:
           pattern: shad3-*
           path: artifacts
-          merge-multiple: true
+          merge: true
       - name: Create GitHub Release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${VERSION}" \
             --title "Release v${VERSION}" \
