@@ -2,276 +2,285 @@
 name: Rust CI
 
 on:
-  schedule:
-    - cron: '0 2 * * 1'  # Every Monday at 2 AM UTC
-  workflow_dispatch:
+ schedule:
+   - cron: '0 2 * * *'  # Every day at 2 AM UTC
+ push:
+   paths:
+     - '**'  # Any file changes
+     - '!.github/**'  # Ignore changes to GitHub-specific files
+     - '!**.md'  # Ignore changes to markdown files
+     - '!LICENSE'  # Ignore license file changes
+     - '!.gitignore'  # Ignore gitignore changes
+ workflow_dispatch:
 
 env:
-  CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
+ CARGO_TERM_COLOR: always
+ RUST_BACKTRACE: 1
 
 jobs:
-  update-dependencies:
-    name: Update Dependencies
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: Run Cargo Update
-        run: cargo update
-      - name: Check for Changes in Cargo.lock
-        run: |
-          if git diff --quiet Cargo.lock; then
-            echo "No dependency updates found."
-            exit 0
-          else
-            echo "Dependencies updated."
-          fi
-      - name: Commit and Push Dependency Updates
-        if: success()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git add Cargo.lock
-          git commit -m "Update dependencies"
-          git push origin ${{ github.ref }}
+ update-dependencies:
+   name: Update Dependencies
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v4
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+     - name: Run Cargo Update
+       run: cargo update
+     - name: Check for Changes in Cargo.lock
+       run: |
+         if git diff --quiet Cargo.lock; then
+           echo "No dependency updates found."
+           exit 0
+         else
+           echo "Dependencies updated."
+         fi
+     - name: Commit and Push Dependency Updates
+       if: success()
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       run: |
+         git config --global user.email "github-actions@github.com"
+         git config --global user.name "GitHub Actions"
+         git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+         git add Cargo.lock
+         git commit -m "Update dependencies" || echo "No changes to commit"
+         git push origin ${{ github.ref }} || echo "No changes to push"
 
-  check:
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+ check:
+   name: Check
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v4
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+     - uses: actions-rs/cargo@v1
+       with:
+         command: check
 
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+ test:
+   name: Test Suite
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v4
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+     - uses: actions-rs/cargo@v1
+       with:
+         command: test
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --emit files
-      - name: Commit and Push Formatting Changes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
-          git push origin ${{ github.ref }}
+ fmt:
+   name: Rustfmt
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v4
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+         components: rustfmt
+     - uses: actions-rs/cargo@v1
+       with:
+         command: fmt
+         args: --all -- --check
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --fix --allow-dirty
-      - name: Commit and Push Lint Fixes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
-          git push origin ${{ github.ref }}
+ clippy:
+   name: Clippy
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v4
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+         components: clippy
+     - uses: actions-rs/cargo@v1
+       with:
+         command: clippy
+         args: -- -D warnings
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        arch: [x86_64, aarch64]
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            arch: aarch64
-            target: aarch64-unknown-linux-gnu
-          - os: macos-latest
-            arch: x86_64
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            arch: aarch64
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            arch: x86_64
-            target: x86_64-pc-windows-msvc
-          - os: windows-latest
-            arch: aarch64
-            target: aarch64-pc-windows-msvc
-          - os: ubuntu-latest
-            arch: x86_64
-            target: x86_64-linux-android
-          - os: ubuntu-latest
-            arch: aarch64
-            target: aarch64-linux-android
-    steps:
-      - uses: actions/checkout@v4
+ build:
+   name: Build
+   runs-on: ${{ matrix.os }}
+   strategy:
+     fail-fast: false
+     matrix:
+       include:
+         # Linux builds
+         - os: ubuntu-latest
+           target: x86_64-unknown-linux-gnu
+           arch: x86_64
+         - os: ubuntu-latest
+           target: aarch64-unknown-linux-gnu
+           arch: aarch64
+           use_cross: true
+         # macOS builds
+         - os: macos-latest
+           target: x86_64-apple-darwin
+           arch: x86_64
+         - os: macos-latest
+           target: aarch64-apple-darwin
+           arch: aarch64
+         # Windows builds
+         - os: windows-latest
+           target: x86_64-pc-windows-msvc
+           arch: x86_64
+         - os: windows-latest
+           target: aarch64-pc-windows-msvc
+           arch: aarch64
+         # Android/Termux builds
+         - os: ubuntu-latest
+           target: x86_64-linux-android
+           arch: x86_64
+           use_cross: true
+         - os: ubuntu-latest
+           target: aarch64-linux-android
+           arch: aarch64
+           use_cross: true
 
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          override: true
+   steps:
+     - uses: actions/checkout@v4
 
-      - name: Install Cross (for cross-compilation)
-        if: |
-          endsWith(matrix.target, 'linux-android') || (matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64')
-        run: cargo install cross --git https://github.com/cross-rs/cross
+     - name: Install dependencies (Ubuntu)
+       if: matrix.os == 'ubuntu-latest'
+       run: |
+         sudo apt-get update
+         sudo apt-get install -y build-essential pkg-config libssl-dev
 
-      - name: Build with Cargo or Cross
-        run: |
-          if [[ "${{ endsWith(matrix.target, 'linux-android') || (matrix.os == 'ubuntu-latest' && matrix.arch == 'aarch64') }}" == "true" ]]; then
-            cross build --release --target ${{ matrix.target }} --bin shad3
-          else
-            cargo build --release --target ${{ matrix.target }} --bin shad3
-          fi
+     - name: Setup MSVC for Windows ARM64
+       if: matrix.os == 'windows-latest' && matrix.arch == 'aarch64'
+       uses: ilammy/msvc-dev-cmd@v1
+       with:
+         arch: aarch64
 
-      - name: Prepare artifacts
-        run: |
-          mkdir -p artifacts
-          TARGET_DIR="target/${{ matrix.target }}/release"
-          if [[ "${{ matrix.target }}" == *"linux-android" ]]; then
-            BIN_FILE="shad3"
-            ARCHIVE_NAME="shad3-termux_${{ matrix.arch }}.zip"
-            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
-            cd artifacts
-            zip "$ARCHIVE_NAME" "$BIN_FILE"
-            cd ..
-          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            BIN_FILE="shad3"
-            ARCHIVE_NAME="shad3-linux_${{ matrix.arch }}.tar.gz"
-            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
-            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $BIN_FILE
-          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
-            BIN_FILE="shad3"
-            ARCHIVE_NAME="shad3-macos_${{ matrix.arch }}.tar.gz"
-            cp "$TARGET_DIR/$BIN_FILE" "artifacts/$BIN_FILE"
-            tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $BIN_FILE
-          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            EXE_FILE="shad3.exe"
-            ARCHIVE_NAME="shad3-windows_${{ matrix.arch }}.zip"
-            cp "$TARGET_DIR\\$EXE_FILE" "artifacts\\$EXE_FILE"
-            cd artifacts
-            zip "$ARCHIVE_NAME" "$EXE_FILE"
-            cd ..
-          fi
+     - name: Install build dependencies (Windows)
+       if: matrix.os == 'windows-latest'
+       run: |
+         choco install llvm --version=15.0.7 -y
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: shad3-${{ matrix.os }}_${{ matrix.arch }}
-          path: artifacts/*
+     - name: Set up Rust toolchain
+       uses: actions-rs/toolchain@v1
+       with:
+         toolchain: stable
+         target: ${{ matrix.target }}
+         override: true
 
-  publish:
-    name: Publish
-    needs: [update-dependencies, check, test, fmt, clippy, build]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: cargo install cargo-edit
-      - name: Set version to current date
-        id: set_version
-        run: |
-          DATE_VERSION=$(date +%Y.%m.%d)
-          cargo set-version $DATE_VERSION
-          echo "VERSION=${DATE_VERSION}" >> $GITHUB_ENV
-      - name: Commit and Push Updated Cargo.toml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git add Cargo.toml
-          git commit -m "Update version to $VERSION"
-          git push origin ${{ github.ref }}
-      - name: Create and push tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git tag "v${VERSION}"
-          git push origin "v${VERSION}"
-      - name: Publish to crates.io
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-        run: cargo publish
-      - name: Verify published version
-        run: |
-          sleep 15
-          SEARCH_RESULT=$(cargo search shad3 --limit 1)
-          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
-          if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
-            echo "Version mismatch" && exit 1
-          fi
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: shad3-*
-          path: artifacts
-          merge: true
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "v${VERSION}" \
-            --title "Release v${VERSION}" \
-            --notes "Release v${VERSION}" \
-            artifacts/*.tar.gz artifacts/*.zip
+     - name: Install Cross (if needed)
+       if: matrix.use_cross
+       run: cargo install cross --git https://github.com/cross-rs/cross
+
+     - name: Set Windows environment variables
+       if: matrix.os == 'windows-latest'
+       shell: pwsh
+       run: |
+         echo "LIBCLANG_PATH=C:\Program Files\LLVM\lib" >> $env:GITHUB_ENV
+         echo "LLVM_CONFIG_PATH=C:\Program Files\LLVM\bin\llvm-config" >> $env:GITHUB_ENV
+
+     - name: Build
+       uses: actions-rs/cargo@v1
+       with:
+         use-cross: ${{ matrix.use_cross }}
+         command: build
+         args: --release --target ${{ matrix.target }} --bin shad3
+       env:
+         CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_LINKER: lld-link
+         CARGO_TARGET_AARCH64_PC_WINDOWS_MSVC_RUSTFLAGS: -C target-feature=+neon
+         CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
+
+     - name: Prepare artifacts
+       shell: pwsh
+       run: |
+         New-Item -Path artifacts -ItemType Directory -Force
+         $TARGET_DIR = "target/${{ matrix.target }}/release"
+         
+         if ("${{ matrix.target }}" -like "*android*") {
+           $BIN_FILE = "shad3"
+           $ARTIFACT_NAME = "shad3"
+           $ARCHIVE_NAME = "shad3-termux_${{ matrix.arch }}.zip"
+           Copy-Item "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
+           Compress-Archive -Path "artifacts/$ARTIFACT_NAME" -DestinationPath "artifacts/$ARCHIVE_NAME"
+         }
+         elseif ("${{ matrix.os }}" -eq "windows-latest") {
+           $EXE_FILE = "shad3.exe"
+           $ARTIFACT_NAME = "shad3.exe"
+           $ARCHIVE_NAME = "shad3-windows_${{ matrix.arch }}.zip"
+           Copy-Item "$TARGET_DIR\$EXE_FILE" "artifacts\$ARTIFACT_NAME"
+           Compress-Archive -Path "artifacts\$ARTIFACT_NAME" -DestinationPath "artifacts\$ARCHIVE_NAME"
+         }
+         else {
+           $BIN_FILE = "shad3"
+           $ARTIFACT_NAME = "shad3"
+           $OS = if ("${{ matrix.os }}" -eq "ubuntu-latest") { "linux" } else { "macos" }
+           $ARCHIVE_NAME = "shad3-${OS}_${{ matrix.arch }}.tar.gz"
+           Copy-Item "$TARGET_DIR/$BIN_FILE" "artifacts/$ARTIFACT_NAME"
+           tar -czf "artifacts/$ARCHIVE_NAME" -C artifacts $ARTIFACT_NAME
+         }
+
+     - uses: actions/upload-artifact@v4
+       with:
+         name: shad3-${{ matrix.target }}
+         path: artifacts/*
+
+ publish:
+   name: Publish
+   needs: [check, test, fmt, clippy, build]
+   runs-on: ubuntu-latest
+   permissions:
+     contents: write
+   steps:
+     - uses: actions/checkout@v4
+       with:
+         fetch-depth: 0
+     - uses: actions-rs/toolchain@v1
+       with:
+         profile: minimal
+         toolchain: stable
+         override: true
+     - run: cargo install cargo-edit
+     - name: Set version to current date
+       run: |
+         DATE_VERSION=$(date +%Y.%m.%d)
+         cargo set-version $DATE_VERSION
+         echo "VERSION=${DATE_VERSION}" >> $GITHUB_ENV
+     - name: Create Release
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       run: |
+         git config --global user.email "github-actions@github.com"
+         git config --global user.name "GitHub Actions"
+         git add Cargo.toml
+         git commit -m "Update version to ${VERSION}" || echo "No version changes"
+         git tag "v${VERSION}"
+         git push origin "v${VERSION}"
+
+     - name: Download artifacts
+       uses: actions/download-artifact@v4
+       with:
+         pattern: shad3-*
+         path: artifacts
+         merge: true
+
+     - name: Create GitHub Release
+       env:
+         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+       run: |
+         gh release create "v${VERSION}" \
+           --title "Release v${VERSION}" \
+           --notes "Release v${VERSION}" \
+           artifacts/*.tar.gz artifacts/*.zip
+
+     - name: Publish to crates.io
+       env:
+         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+       run: cargo publish || echo "Failed to publish to crates.io"
