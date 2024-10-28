@@ -254,4 +254,3 @@ jobs:
             --title "Release v${VERSION}" \
             --notes "Release v${VERSION}" \
             artifacts/*.tar.gz artifacts/*.zip
----
