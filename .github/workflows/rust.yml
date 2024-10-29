@@ -94,10 +94,11 @@ jobs:
          command: check
 
  build:
-   name: Build
+   name: Build ${{ matrix.target }}
    needs: check
    runs-on: ${{ matrix.os }}
    strategy:
+     fail-fast: false
      matrix:
        include:
          # Linux builds
@@ -203,7 +204,7 @@ jobs:
          fi
          
      - name: Upload artifacts
-       uses: actions/upload-artifact@v4
+       uses: actions/download-artifact@v4
        with:
          name: ${{ matrix.target }}
          path: artifacts/${{ matrix.artifact_name }}
@@ -211,7 +212,7 @@ jobs:
  publish:
    name: Publish
    needs: build
-   if: github.ref == 'refs/heads/main'
+   if: ${{ github.ref == 'refs/heads/main' }}
    runs-on: ubuntu-latest
    permissions:
      contents: write
