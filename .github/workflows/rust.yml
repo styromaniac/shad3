@@ -214,11 +214,8 @@ jobs:
 
  publish:
    name: Publish
-   needs: [check, build, update-dependencies, set-version]
-   if: |
-     success() && 
-     (github.ref == 'refs/heads/main' ||
-      (github.event_name == 'schedule' && needs.update-dependencies.outputs.has_changes == 'true'))
+   needs: [check, build]
+   if: github.ref == 'refs/heads/main' && success()
    runs-on: ubuntu-latest
    permissions:
      contents: write
