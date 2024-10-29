@@ -231,26 +231,54 @@ jobs:
          use-cross: ${{ matrix.use_cross || false }}
          command: build
          args: --release --target ${{ matrix.target }} --bin shad3
+
+     - name: Debug Directory Structure
+       run: |
+         echo "Current working directory: $PWD"
+         echo "Listing workspace root:"
+         ls -la
+         echo "Listing target directory:"
+         ls -la target/
+         echo "Listing target architecture directory:"
+         ls -la target/${{ matrix.target }}/
+         echo "Listing release directory:"
+         ls -la target/${{ matrix.target }}/release/
          
      - name: Prepare artifacts
        shell: bash
        run: |
-         mkdir -p artifacts
-         cd target/${{ matrix.target }}/release
+         # Debug current state
+         echo "Current directory before preparation: $PWD"
+         
+         # Create artifacts directory with absolute path
+         ARTIFACTS_DIR="$PWD/artifacts"
+         mkdir -p "$ARTIFACTS_DIR"
+         echo "Created artifacts directory at: $ARTIFACTS_DIR"
+         ls -la "$ARTIFACTS_DIR"
+         
+         # Debug target directory contents
+         echo "Target directory contents:"
+         ls -la target/${{ matrix.target }}/release/
          
          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-           cp shad3.exe ../../artifacts/shad3.exe
-           cd ../../artifacts
+           echo "Copying Windows binary..."
+           cp "target/${{ matrix.target }}/release/shad3.exe" "$ARTIFACTS_DIR/shad3.exe"
+           cd "$ARTIFACTS_DIR"
            7z a ${{ matrix.artifact_name }} shad3.exe
          else
-           cp shad3 ../../artifacts/shad3
-           cd ../../artifacts
+           echo "Copying Unix binary..."
+           cp "target/${{ matrix.target }}/release/shad3" "$ARTIFACTS_DIR/shad3"
+           cd "$ARTIFACTS_DIR"
            if [[ "${{ matrix.artifact_name }}" == *.zip ]]; then
              zip ${{ matrix.artifact_name }} shad3
            else
              tar czf ${{ matrix.artifact_name }} shad3
            fi
          fi
+         
+         # Debug final state
+         echo "Final artifacts directory contents:"
+         ls -la "$ARTIFACTS_DIR"
          
      - name: Upload artifacts
        uses: actions/upload-artifact@v4
