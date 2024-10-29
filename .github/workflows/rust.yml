@@ -3,17 +3,21 @@ name: Rust CI and Publish
 
 on:
  push:
-   paths-ignore:
-     - '**.md'
-     - 'docs/**'
-     - '.github/**'
-     - '!.github/workflows/**'
- pull_request:
    paths:
+     - '.github/workflows/rust.yml'
      - '**/Cargo.toml'
      - '**/Cargo.lock'
      - '**.rs'
-     - '.github/workflows/**'
+   branches:
+     - main
+ pull_request:
+   paths:
+     - '.github/workflows/rust.yml'
+     - '**/Cargo.toml'
+     - '**/Cargo.lock'
+     - '**.rs'
+   branches:
+     - main
  workflow_dispatch:
  schedule:
    - cron: '0 5 * * *'
