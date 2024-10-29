@@ -3,7 +3,7 @@ name: Rust CI
 
 on:
  schedule:
-   - cron: '0 0 * * *'  # Every day at 12 AM UTC
+   - cron: '0 16 * * *'
  push:
    paths:
      - '**'  # Any file changes
