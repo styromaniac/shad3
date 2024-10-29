@@ -97,7 +97,7 @@ Move-Item -Path "$env:USERPROFILE\.cargoin\shad3.exe" -Destination "$env:Program
 #### Termux Source
 ```bash
 # Update packages and install Rust via pkg (avoiding rustup)
-pkg update && pkg install -y rust cargo git unzip && # Install SHAD3 using Cargo
+pkg update && pkg install -y rust git unzip && # Install SHAD3 using Cargo
 cargo install shad3 && # Move the binary to a system-wide location
 mv ~/.cargo/bin/shad3 ~/../usr/bin
 ```
