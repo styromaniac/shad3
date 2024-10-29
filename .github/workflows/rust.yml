@@ -87,11 +87,7 @@ jobs:
 
  check:
    name: Check  
-   needs: [update-dependencies, set-version]
-   if: |
-     always() &&
-     (needs.set-version.result == 'success' || needs.set-version.result == 'skipped') &&
-     (needs.update-dependencies.result == 'success' || needs.update-dependencies.result == 'skipped')
+   needs: set-version
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v4
@@ -106,7 +102,7 @@ jobs:
 
  build:
    name: Build
-   needs: [check, update-dependencies, set-version]
+   needs: check
    runs-on: ${{ matrix.os }}
    strategy:
      matrix:
