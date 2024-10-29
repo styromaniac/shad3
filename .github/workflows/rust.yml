@@ -2,7 +2,6 @@
 name: Rust CI and Publish
 
 on:
- # Existing triggers
  push:
    paths-ignore:
      - '**.md'
@@ -16,7 +15,6 @@ on:
      - '**.rs'
      - '.github/workflows/**'
  workflow_dispatch:
- # Add cron trigger - 12AM EST is 5AM UTC
  schedule:
    - cron: '0 5 * * *'
 
@@ -60,13 +58,29 @@ jobs:
            echo "has_changes=false" >> $GITHUB_OUTPUT
          fi
 
+ set-version:
+   name: Set Version
+   runs-on: ubuntu-latest
+   if: github.event_name != 'schedule'
+   steps:
+     - uses: actions/checkout@v4
+     - name: Update version
+       run: |
+         NEW_VERSION=$(date +'%Y.%m.%d')
+         sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" Cargo.toml
+         git config --global user.email "github-actions@github.com"
+         git config --global user.name "GitHub Actions"
+         git add Cargo.toml
+         git commit -m "Update version to $NEW_VERSION" || echo "No version changes needed"
+         git push || echo "No changes to push"
+
  check:
    name: Check  
-   needs: [update-dependencies]
+   needs: [update-dependencies, set-version]
    if: |
      always() &&
-     (needs.update-dependencies.result == 'success' ||
-      needs.update-dependencies.result == 'skipped')
+     (needs.set-version.result == 'success' || needs.set-version.result == 'skipped') &&
+     (needs.update-dependencies.result == 'success' || needs.update-dependencies.result == 'skipped')
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v4
@@ -81,11 +95,11 @@ jobs:
 
  build:
    name: Build
-   needs: [update-dependencies]
+   needs: [update-dependencies, set-version]
    if: |
      always() &&
-     (needs.update-dependencies.result == 'success' ||
-      needs.update-dependencies.result == 'skipped')
+     (needs.set-version.result == 'success' || needs.set-version.result == 'skipped') &&
+     (needs.update-dependencies.result == 'success' || needs.update-dependencies.result == 'skipped')
    runs-on: ${{ matrix.os }}
    strategy:
      matrix:
@@ -200,7 +214,7 @@ jobs:
 
  publish:
    name: Publish
-   needs: [check, build, update-dependencies]
+   needs: [check, build, update-dependencies, set-version]
    if: |
      success() && 
      (github.ref == 'refs/heads/main' ||
