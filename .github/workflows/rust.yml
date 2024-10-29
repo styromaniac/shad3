@@ -27,9 +27,10 @@ jobs:
  update-dependencies:
    name: Update Dependencies
    runs-on: ubuntu-latest
-   if: github.event_name == 'schedule'
    outputs:
      has_changes: ${{ steps.check-changes.outputs.has_changes }}
+     version: ${{ steps.set-version.outputs.version }}
+   if: github.event_name == 'schedule'
    steps:
      - uses: actions/checkout@v4
      
@@ -39,9 +40,11 @@ jobs:
      - name: Update dependencies
        run: cargo upgrade
 
-     - name: Update version
+     - id: set-version
+       name: Update version
        run: |
-         NEW_VERSION=$(date +'%Y.%m.%d')
+         NEW_VERSION=$(date +'%Y.%m.%d%H%M')
+         echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
          sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" Cargo.toml
          
      - id: check-changes
@@ -52,7 +55,7 @@ jobs:
            git config --global user.email "github-actions@github.com"
            git config --global user.name "GitHub Actions"
            git add Cargo.toml Cargo.lock
-           git commit -m "Update dependencies and version to $NEW_VERSION"
+           git commit -m "Update dependencies and version to ${{ steps.set-version.outputs.version }}"
            git push
          else
            echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -61,12 +64,16 @@ jobs:
  set-version:
    name: Set Version
    runs-on: ubuntu-latest
+   outputs:
+     version: ${{ steps.set-version.outputs.version }}
    if: github.event_name != 'schedule'
    steps:
      - uses: actions/checkout@v4
-     - name: Update version
+     - id: set-version
+       name: Update version
        run: |
-         NEW_VERSION=$(date +'%Y.%m.%d')
+         NEW_VERSION=$(date +'%Y.%m.%d%H%M')
+         echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
          sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" Cargo.toml
          git config --global user.email "github-actions@github.com"
          git config --global user.name "GitHub Actions"
@@ -94,11 +101,10 @@ jobs:
          command: check
 
  build:
-   name: Build (${{ matrix.target }})
-   needs: check
+   name: Build
+   needs: [check, update-dependencies, set-version]
    runs-on: ${{ matrix.os }}
    strategy:
-     fail-fast: false
      matrix:
        include:
          # Linux builds
@@ -138,44 +144,28 @@ jobs:
 
    steps:
      - uses: actions/checkout@v4
-
-     - name: Build Info
-       shell: bash
-       run: |
-         echo "Building for target: ${{ matrix.target }}"
-         echo "OS: ${{ matrix.os }}"
-         echo "Artifact name: ${{ matrix.artifact_name }}"
-         echo "Working directory: $PWD"
      
      - name: Install Android NDK
        if: matrix.android
        run: |
-         echo "Installing Android NDK..."
          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
          unzip -q android-ndk-r25c-linux.zip
          NDK_HOME=$PWD/android-ndk-r25c
          echo "ANDROID_NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
          
-         echo "Setting up Android toolchain..."
          mkdir -p $GITHUB_WORKSPACE/bin
          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/x86_64-linux-android-ar
          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/aarch64-linux-android-ar
          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
 
-         echo "Setting up environment variables..."
          echo "AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
          echo "CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
          echo "AR_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
          echo "CC_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" >> $GITHUB_ENV
-
-         echo "Verifying Android NDK setup..."
-         ls -la $GITHUB_WORKSPACE/bin
-         echo "PATH=$PATH"
          
      - name: Setup Cargo Config
        if: matrix.android
        run: |
-         echo "Setting up Cargo config..."
          mkdir -p .cargo
          cat > .cargo/config.toml << EOF
          [target.aarch64-linux-android]
@@ -186,9 +176,6 @@ jobs:
          ar = "x86_64-linux-android-ar"
          linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
          EOF
-         
-         echo "Cargo config contents:"
-         cat .cargo/config.toml
          
      - name: Setup Rust toolchain
        uses: actions-rs/toolchain@v1
@@ -204,26 +191,15 @@ jobs:
          command: build
          args: --release --target ${{ matrix.target }} --bin shad3
 
-     - name: Check Build Output
-       shell: bash
-       run: |
-         echo "Checking build output directory..."
-         ls -la target/${{ matrix.target }}/release/
-         echo "Current directory structure:"
-         ls -la
-
      - name: Prepare artifacts
        shell: bash
        run: |
-         echo "Preparing artifacts..."
          mkdir -p artifacts
          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-           echo "Preparing Windows artifact..."
            cp target/${{ matrix.target }}/release/shad3.exe artifacts/
            cd artifacts
            7z a ${{ matrix.artifact_name }} shad3.exe
          else
-           echo "Preparing Unix artifact..."
            cp target/${{ matrix.target }}/release/shad3 artifacts/
            cd artifacts
            if [[ "${{ matrix.artifact_name }}" == *.zip ]]; then
@@ -233,9 +209,6 @@ jobs:
            fi
          fi
          
-         echo "Artifact directory contents:"
-         ls -la
-         
      - name: Upload artifacts
        uses: actions/upload-artifact@v4
        with:
@@ -244,25 +217,13 @@ jobs:
 
  publish:
    name: Publish
-   needs: build
-   if: ${{ github.ref == 'refs/heads/main' }}
+   needs: [build, update-dependencies, set-version]
+   if: github.ref == 'refs/heads/main' && success()
    runs-on: ubuntu-latest
    permissions:
      contents: write
    steps:
      - uses: actions/checkout@v4
-       with:
-         fetch-depth: 0
-         ref: main
-
-     - name: Debug Info
-       run: |
-         echo "GITHUB_REF: ${{ github.ref }}"
-         echo "GITHUB_SHA: ${{ github.sha }}"
-         echo "Current directory: $PWD"
-         ls -la
-         echo "Cargo.toml contents:"
-         cat Cargo.toml
      
      - name: Setup Rust
        uses: actions-rs/toolchain@v1
@@ -278,17 +239,11 @@ jobs:
          path: artifacts
          merge-multiple: true
          
-     - name: List artifacts
-       run: |
-         echo "Artifacts directory contents:"
-         ls -R artifacts/
-         
      - name: Create GitHub Release
        env:
          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
        run: |
-         VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
-         echo "Creating release for version: $VERSION"
+         VERSION="${{ github.event_name == 'schedule' && needs.update-dependencies.outputs.version || needs.set-version.outputs.version }}"
          gh release create "v${VERSION}" \
            --title "Release v${VERSION}" \
            --notes "Release v${VERSION}" \
