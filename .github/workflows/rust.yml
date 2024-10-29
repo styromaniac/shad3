@@ -1,3 +1,4 @@
+---
 name: Rust CI and Publish
 
 on:
@@ -64,8 +65,8 @@ jobs:
    needs: [update-dependencies]
    if: |
      always() &&
-     (needs.update-dependencies.outputs.has_changes == 'true' ||
-      github.event_name != 'schedule')
+     (needs.update-dependencies.result == 'success' ||
+      needs.update-dependencies.result == 'skipped')
    runs-on: ubuntu-latest
    steps:
      - uses: actions/checkout@v4
@@ -83,8 +84,8 @@ jobs:
    needs: [update-dependencies]
    if: |
      always() &&
-     (needs.update-dependencies.outputs.has_changes == 'true' ||
-      github.event_name != 'schedule')
+     (needs.update-dependencies.result == 'success' ||
+      needs.update-dependencies.result == 'skipped')
    runs-on: ${{ matrix.os }}
    strategy:
      matrix:
@@ -202,7 +203,7 @@ jobs:
    needs: [check, build, update-dependencies]
    if: |
      success() && 
-     ((github.ref == 'refs/heads/main' && github.event_name != 'schedule') ||
+     (github.ref == 'refs/heads/main' ||
       (github.event_name == 'schedule' && needs.update-dependencies.outputs.has_changes == 'true'))
    runs-on: ubuntu-latest
    permissions:
