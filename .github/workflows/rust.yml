@@ -94,7 +94,7 @@ jobs:
          command: check
 
  build:
-   name: Build ${{ matrix.target }}
+   name: Build (${{ matrix.target }})
    needs: check
    runs-on: ${{ matrix.os }}
    strategy:
@@ -138,28 +138,44 @@ jobs:
 
    steps:
      - uses: actions/checkout@v4
+
+     - name: Build Info
+       shell: bash
+       run: |
+         echo "Building for target: ${{ matrix.target }}"
+         echo "OS: ${{ matrix.os }}"
+         echo "Artifact name: ${{ matrix.artifact_name }}"
+         echo "Working directory: $PWD"
      
      - name: Install Android NDK
        if: matrix.android
        run: |
+         echo "Installing Android NDK..."
          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
          unzip -q android-ndk-r25c-linux.zip
          NDK_HOME=$PWD/android-ndk-r25c
          echo "ANDROID_NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
          
+         echo "Setting up Android toolchain..."
          mkdir -p $GITHUB_WORKSPACE/bin
          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/x86_64-linux-android-ar
          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/aarch64-linux-android-ar
          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
 
+         echo "Setting up environment variables..."
          echo "AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
          echo "CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
          echo "AR_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
          echo "CC_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" >> $GITHUB_ENV
+
+         echo "Verifying Android NDK setup..."
+         ls -la $GITHUB_WORKSPACE/bin
+         echo "PATH=$PATH"
          
      - name: Setup Cargo Config
        if: matrix.android
        run: |
+         echo "Setting up Cargo config..."
          mkdir -p .cargo
          cat > .cargo/config.toml << EOF
          [target.aarch64-linux-android]
@@ -170,6 +186,9 @@ jobs:
          ar = "x86_64-linux-android-ar"
          linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
          EOF
+         
+         echo "Cargo config contents:"
+         cat .cargo/config.toml
          
      - name: Setup Rust toolchain
        uses: actions-rs/toolchain@v1
@@ -185,15 +204,26 @@ jobs:
          command: build
          args: --release --target ${{ matrix.target }} --bin shad3
 
+     - name: Check Build Output
+       shell: bash
+       run: |
+         echo "Checking build output directory..."
+         ls -la target/${{ matrix.target }}/release/
+         echo "Current directory structure:"
+         ls -la
+
      - name: Prepare artifacts
        shell: bash
        run: |
+         echo "Preparing artifacts..."
          mkdir -p artifacts
          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+           echo "Preparing Windows artifact..."
            cp target/${{ matrix.target }}/release/shad3.exe artifacts/
            cd artifacts
            7z a ${{ matrix.artifact_name }} shad3.exe
          else
+           echo "Preparing Unix artifact..."
            cp target/${{ matrix.target }}/release/shad3 artifacts/
            cd artifacts
            if [[ "${{ matrix.artifact_name }}" == *.zip ]]; then
@@ -203,8 +233,11 @@ jobs:
            fi
          fi
          
+         echo "Artifact directory contents:"
+         ls -la
+         
      - name: Upload artifacts
-       uses: actions/download-artifact@v4
+       uses: actions/upload-artifact@v4
        with:
          name: ${{ matrix.target }}
          path: artifacts/${{ matrix.artifact_name }}
