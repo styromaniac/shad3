@@ -2,385 +2,502 @@
 name: Rust CI and Publish
 
 on:
- push:
-   branches: 
-     - main
-     - master
-   tags:
-     - 'v*.*.*'
- pull_request:
-   branches:
-     - main
-     - master
- workflow_dispatch:
+  push:
+    branches: 
+      - main
+      - master
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
 
 env:
- CARGO_TERM_COLOR: always
- RUST_BACKTRACE: 1
- NDK_VERSION: 25c
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  NDK_VERSION: 25c
+  RUST_LOG: debug
 
 jobs:
- check:
-   name: Check  
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v4
-     - uses: actions-rs/toolchain@v1
-       with:
-         profile: minimal
-         toolchain: stable
-         override: true
-     - uses: actions/cache@v4
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-     - uses: actions-rs/cargo@v1
-       with:
-         command: check
+  check:
+    name: Check  
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
 
- test:
-   name: Test Suite
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v4
-     - uses: actions-rs/toolchain@v1
-       with:
-         profile: minimal 
-         toolchain: stable
-         override: true
-     - uses: actions/cache@v4
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-     - uses: actions-rs/cargo@v1
-       with:
-         command: test
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal 
+          toolchain: stable
+          override: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
 
- fmt:
-   name: Rustfmt
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v4
-     - uses: actions-rs/toolchain@v1
-       with:
-         profile: minimal
-         toolchain: stable
-         override: true
-         components: rustfmt
-     - uses: actions-rs/cargo@v1
-       with:
-         command: fmt
-         args: --all -- --emit files 
-     - name: Commit and Push Formatting Changes
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         git config --global user.email "github-actions@github.com"
-         git config --global user.name "GitHub Actions"
-         git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-         git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
-         git push origin ${{ github.ref }}
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --emit files 
+      - name: Commit and Push Formatting Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          git commit -am "Apply rustfmt fixes" || echo "No formatting fixes needed"
+          git push origin ${{ github.ref }}
 
- clippy:
-   name: Clippy
-   runs-on: ubuntu-latest
-   steps:
-     - uses: actions/checkout@v4
-     - uses: actions-rs/toolchain@v1
-       with:
-         profile: minimal
-         toolchain: stable
-         override: true
-         components: clippy
-     - uses: actions/cache@v4
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-     - uses: actions-rs/cargo@v1
-       with:
-         command: clippy
-         args: --fix --allow-dirty
-     - name: Commit and Push Lint Fixes
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         git config --global user.email "github-actions@github.com"
-         git config --global user.name "GitHub Actions"
-         git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-         git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
-         git push origin ${{ github.ref }}
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --fix --allow-dirty
+      - name: Commit and Push Lint Fixes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          git commit -am "Apply clippy fixes" || echo "No linting fixes needed"
+          git push origin ${{ github.ref }}
 
- build:
-   name: Build
-   runs-on: ${{ matrix.os }}
-   strategy:
-     matrix:
-       include:
-         # Standard Linux builds
-         - os: ubuntu-latest
-           target: x86_64-unknown-linux-gnu
-           artifact_name: shad3-linux_x86_64.tar.gz
-         - os: ubuntu-latest
-           target: aarch64-unknown-linux-gnu
-           artifact_name: shad3-linux_aarch64.tar.gz
-           use_cross: true
-           
-         # macOS builds  
-         - os: macos-latest
-           target: x86_64-apple-darwin
-           artifact_name: shad3-macos_x86_64.tar.gz
-         - os: macos-latest
-           target: aarch64-apple-darwin
-           artifact_name: shad3-macos_aarch64.tar.gz
-           
-         # Windows builds
-         - os: windows-latest
-           target: x86_64-pc-windows-msvc
-           artifact_name: shad3-windows_x86_64.zip
-         - os: windows-latest
-           target: aarch64-pc-windows-msvc
-           artifact_name: shad3-windows_aarch64.zip
-           
-         # Termux builds
-         - os: ubuntu-latest
-           target: x86_64-linux-android
-           artifact_name: shad3-termux_x86_64.zip
-           android: true
-         - os: ubuntu-latest
-           target: aarch64-linux-android
-           artifact_name: shad3-termux_aarch64.zip
-           android: true
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Standard Linux builds
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: shad3-linux_x86_64.tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: shad3-linux_aarch64.tar.gz
+            use_cross: true
+            
+          # macOS builds  
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: shad3-macos_x86_64.tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: shad3-macos_aarch64.tar.gz
+            
+          # Windows builds
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: shad3-windows_x86_64.zip
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact_name: shad3-windows_aarch64.zip
+            
+          # Termux builds
+          - os: ubuntu-latest
+            target: x86_64-linux-android
+            artifact_name: shad3-termux_x86_64.zip
+            android: true
+          - os: ubuntu-latest
+            target: aarch64-linux-android
+            artifact_name: shad3-termux_aarch64.zip
+            android: true
 
-   steps:
-     - uses: actions/checkout@v4
-     
-     - name: Install Android NDK
-       if: matrix.android
-       run: |
-         wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-         unzip -q android-ndk-r25c-linux.zip
-         NDK_HOME=$PWD/android-ndk-r25c
-         echo "ANDROID_NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
-         
-         # Setup for aarch64
-         echo "AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
-         echo "CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
-         echo "CXX_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++" >> $GITHUB_ENV
-         
-         # Setup for x86_64
-         echo "AR_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
-         echo "CC_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" >> $GITHUB_ENV
-         echo "CXX_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++" >> $GITHUB_ENV
+steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Android NDK
+        if: matrix.android
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip -q android-ndk-r25c-linux.zip
+          NDK_HOME=$PWD/android-ndk-r25c
+          echo "ANDROID_NDK_HOME=$NDK_HOME" >> $GITHUB_ENV
+          
+          # Setup for aarch64
+          echo "AR_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
+          echo "CC_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang" >> $GITHUB_ENV
+          echo "CXX_aarch64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang++" >> $GITHUB_ENV
+          
+          # Setup for x86_64
+          echo "AR_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar" >> $GITHUB_ENV
+          echo "CC_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang" >> $GITHUB_ENV
+          echo "CXX_x86_64_linux_android=$NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang++" >> $GITHUB_ENV
 
-         # Create symbolic links for traditional names
-         mkdir -p $GITHUB_WORKSPACE/bin
-         ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/x86_64-linux-android-ar
-         ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/aarch64-linux-android-ar
-         echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+          # Create symbolic links for traditional names
+          mkdir -p $GITHUB_WORKSPACE/bin
+          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/x86_64-linux-android-ar
+          ln -s $NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar $GITHUB_WORKSPACE/bin/aarch64-linux-android-ar
+          echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
 
-         # Debug output
-         echo "Checking symlinks and paths:"
-         ls -la $GITHUB_WORKSPACE/bin/
-         echo "PATH=$PATH"
-         
-     - name: Setup Cargo Config
-       if: matrix.android
-       run: |
-         mkdir -p .cargo
-         cat > .cargo/config.toml << EOF
-         [target.aarch64-linux-android]
-         ar = "aarch64-linux-android-ar"
-         linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
-         
-         [target.x86_64-linux-android]
-         ar = "x86_64-linux-android-ar"
-         linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
-         EOF
+          # Debug output
+          echo "Checking symlinks and paths:"
+          ls -la $GITHUB_WORKSPACE/bin/
+          echo "PATH=$PATH"
+          
+      - name: Setup Cargo Config
+        if: matrix.android
+        run: |
+          mkdir -p .cargo
+          cat > .cargo/config.toml << EOF
+          [target.aarch64-linux-android]
+          ar = "aarch64-linux-android-ar"
+          linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android21-clang"
+          
+          [target.x86_64-linux-android]
+          ar = "x86_64-linux-android-ar"
+          linker = "$PWD/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
+          EOF
 
-         # Debug output
-         echo "Cargo config contents:"
-         cat .cargo/config.toml
-         
-     - name: Setup Rust toolchain
-       uses: actions-rs/toolchain@v1
-       with:
-         toolchain: stable
-         target: ${{ matrix.target }}
-         override: true
-         
-     - uses: actions/cache@v4
-       with:
-         path: |
-           ~/.cargo/registry
-           ~/.cargo/git
-           target
-         key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-         
-     - name: Build Binary
-       uses: actions-rs/cargo@v1
-       with:
-         use-cross: ${{ matrix.use_cross || false }}
-         command: build
-         args: --release --target ${{ matrix.target }} --bin shad3
+          # Debug output
+          echo "Cargo config contents:"
+          cat .cargo/config.toml
+          
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Build Binary
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.use_cross || false }}
+          command: build
+          args: --release --target ${{ matrix.target }} --bin shad3
 
-     - name: Debug Directory Structure
-       run: |
-         echo "Current working directory: $PWD"
-         echo "Listing workspace root:"
-         ls -la
-         echo "Listing target directory:"
-         ls -la target/
-         echo "Listing target architecture directory:"
-         ls -la target/${{ matrix.target }}/
-         echo "Listing release directory:"
-         ls -la target/${{ matrix.target }}/release/
-         
-     - name: Prepare artifacts
-       shell: bash
-       run: |
-         # Debug current state
-         echo "Current directory before preparation: $PWD"
-         
-         # Create artifacts directory with absolute path
-         ARTIFACTS_DIR="$PWD/artifacts"
-         mkdir -p "$ARTIFACTS_DIR"
-         echo "Created artifacts directory at: $ARTIFACTS_DIR"
-         ls -la "$ARTIFACTS_DIR"
-         
-         # Debug target directory contents
-         echo "Target directory contents:"
-         ls -la target/${{ matrix.target }}/release/
-         
-         if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-           echo "Copying Windows binary..."
-           cp "target/${{ matrix.target }}/release/shad3.exe" "$ARTIFACTS_DIR/shad3.exe"
-           cd "$ARTIFACTS_DIR"
-           7z a ${{ matrix.artifact_name }} shad3.exe
-         else
-           echo "Copying Unix binary..."
-           cp "target/${{ matrix.target }}/release/shad3" "$ARTIFACTS_DIR/shad3"
-           cd "$ARTIFACTS_DIR"
-           if [[ "${{ matrix.artifact_name }}" == *.zip ]]; then
-             zip ${{ matrix.artifact_name }} shad3
-           else
-             tar czf ${{ matrix.artifact_name }} shad3
-           fi
-         fi
-         
-         # Debug final state
-         echo "Final artifacts directory contents:"
-         ls -la "$ARTIFACTS_DIR"
-         
-     - name: Upload artifacts
-       uses: actions/upload-artifact@v4
-       with:
-         name: ${{ matrix.target }}
-         path: artifacts/${{ matrix.artifact_name }}
+      - name: Debug Directory Structure (Unix)
+        shell: bash
+        if: matrix.os != 'windows-latest'
+        run: |
+          echo "Current working directory: $PWD"
+          echo "Listing workspace root:"
+          ls -la
+          echo "Listing target directory:"
+          ls -la target/
+          echo "Listing target architecture directory:"
+          ls -la target/${{ matrix.target }}/
+          echo "Listing release directory:"
+          ls -la target/${{ matrix.target }}/release/
 
- version-bump:
-   name: Version Bump
-   runs-on: ubuntu-latest
-   needs: [fmt, clippy]
-   if: github.ref == 'refs/heads/main'
-   steps:
-     - uses: actions/checkout@v4
-       with:
-         fetch-depth: 0
-     - name: Increment Patch Version
-       id: bump_version
-       run: |
-         if [[ $(grep '^version = ' Cargo.toml) =~ version\ =\ \"([0-9]+)\.([0-9]+)\.([0-9]+)\" ]]; then
-           MAJOR=${BASH_REMATCH[1]}
-           MINOR=${BASH_REMATCH[2]}
-           PATCH=${BASH_REMATCH[3]}
-           NEW_PATCH=$((PATCH + 1))
-           NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-         else
-           echo "Version pattern not found" && exit 1
-         fi
-     - name: Commit Version Bump
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         git config --global user.email "github-actions@github.com"
-         git config --global user.name "GitHub Actions"
-         git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-         git add Cargo.toml
-         git commit -m "Bump version to ${{ env.NEW_VERSION }}"
-         git push origin main
+      - name: Debug Directory Structure (Windows)
+        shell: pwsh
+        if: matrix.os == 'windows-latest'
+        run: |
+          Write-Host "Current working directory: $PWD"
+          Write-Host "Listing workspace root:"
+          Get-ChildItem -Force
+          Write-Host "Listing target directory:"
+          Get-ChildItem -Force target
+          Write-Host "Listing target architecture directory:"
+          Get-ChildItem -Force target/${{ matrix.target }}
+          Write-Host "Listing release directory:"
+          Get-ChildItem -Force target/${{ matrix.target }}/release
+          
+      - name: Prepare artifacts (Unix)
+        if: matrix.os != 'windows-latest'
+        shell: bash
+        run: |
+          ARTIFACTS_DIR="$PWD/artifacts"
+          mkdir -p "$ARTIFACTS_DIR"
+          echo "Created artifacts directory at: $ARTIFACTS_DIR"
+          ls -la "$ARTIFACTS_DIR"
+          
+          echo "Target directory contents:"
+          ls -la target/${{ matrix.target }}/release/
+          
+          cp "target/${{ matrix.target }}/release/shad3" "$ARTIFACTS_DIR/shad3"
+          cd "$ARTIFACTS_DIR"
+          if [[ "${{ matrix.artifact_name }}" == *.zip ]]; then
+            zip ${{ matrix.artifact_name }} shad3
+          else
+            tar czf ${{ matrix.artifact_name }} shad3
+          fi
+          
+          echo "Final artifacts directory contents:"
+          ls -la "$ARTIFACTS_DIR"
 
- publish:
-   name: Publish
-   needs: [check, test, fmt, clippy, build, version-bump]
-   runs-on: ubuntu-latest
-   permissions:
-     contents: write
-   if: github.ref == 'refs/heads/main'
-   steps:
-     - uses: actions/checkout@v4
-       with:
-         fetch-depth: 0
-         
-     - uses: actions-rs/toolchain@v1
-       with:
-         profile: minimal
-         toolchain: stable
-         override: true
-         
-     - run: cargo install cargo-edit
-     
-     - name: Get current version
-       id: version
-       run: |
-         VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
-         echo "VERSION=${VERSION}" >> $GITHUB_ENV
-         
-     - name: Create and push tag
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         git config --global user.email "github-actions@github.com"
-         git config --global user.name "GitHub Actions"
-         git tag "v${VERSION}"
-         git push origin "v${VERSION}"
-         
-     - name: Publish to crates.io
-       env:
-         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
-       run: cargo publish
-       
-     - name: Verify published version
-       run: |
-         sleep 15
-         SEARCH_RESULT=$(cargo search shad3 --limit 1)
-         PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
-         if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
-           echo "Version mismatch" && exit 1
-         fi
-         
-     - name: Download artifacts
-       uses: actions/download-artifact@v4
-       with:
-         pattern: "*-unknown-*"
-         path: artifacts
-         merge-multiple: true
-         
-     - name: Create GitHub Release
-       env:
-         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       run: |
-         gh release create "v${VERSION}" \
-           --title "Release v${VERSION}" \
-           --notes "Release v${VERSION}" \
-           artifacts/*.tar.gz artifacts/*.zip
+      - name: Prepare artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ArtifactsDir = Join-Path $PWD "artifacts"
+          Write-Host "Creating artifacts directory at: $ArtifactsDir"
+          New-Item -ItemType Directory -Force -Path $ArtifactsDir
+          
+          Write-Host "Target directory contents:"
+          Get-ChildItem -Force target/${{ matrix.target }}/release
+          
+          $BinaryPath = Join-Path $PWD "target" "${{ matrix.target }}" "release" "shad3.exe"
+          $ArtifactPath = Join-Path $ArtifactsDir "shad3.exe"
+          
+          Write-Host "Copying binary from $BinaryPath to $ArtifactPath"
+          Copy-Item -Path $BinaryPath -Destination $ArtifactPath -Force
+          
+          Set-Location $ArtifactsDir
+          Write-Host "Creating zip archive"
+          Compress-Archive -Path "shad3.exe" -DestinationPath "${{ matrix.artifact_name }}" -Force
+          
+          Write-Host "Final artifacts directory contents:"
+          Get-ChildItem -Force $ArtifactsDir
+          
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: artifacts/${{ matrix.artifact_name }}
+
+  version-bump:
+    name: Version Bump
+    runs-on: ubuntu-latest
+    needs: [fmt, clippy]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Increment Patch Version
+        id: bump_version
+        run: |
+          echo "Reading current version from Cargo.toml..."
+          if [[ $(grep '^version = ' Cargo.toml) =~ version\ =\ \"([0-9]+)\.([0-9]+)\.([0-9]+)\" ]]; then
+            MAJOR=${BASH_REMATCH[1]}
+            MINOR=${BASH_REMATCH[2]}
+            PATCH=${BASH_REMATCH[3]}
+            echo "Current version: $MAJOR.$MINOR.$PATCH"
+            
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+            echo "New version will be: $NEW_VERSION"
+            
+            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+            
+            echo "Version bump complete"
+          else
+            echo "ERROR: Version pattern not found in Cargo.toml"
+            exit 1
+          fi
+      - name: Commit Version Bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Configuring git..."
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          
+          echo "Committing version bump..."
+          git add Cargo.toml
+          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
+          
+          echo "Pushing changes..."
+          git push origin main
+
+  publish:
+    name: Publish
+    needs: [check, test, fmt, clippy, build, version-bump]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          
+      - name: Install cargo-edit
+        run: |
+          echo "Installing cargo-edit..."
+          cargo install cargo-edit
+          echo "cargo-edit installed successfully"
+      
+      - name: Get current version
+        id: version
+        run: |
+          echo "Reading version from Cargo.toml..."
+          if ! VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/'); then
+            echo "ERROR: Failed to extract version from Cargo.toml"
+            exit 1
+          fi
+          echo "Found version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Configuring git..."
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          echo "Creating tag v${VERSION}..."
+          if ! git tag "v${VERSION}"; then
+            echo "ERROR: Failed to create tag"
+            exit 1
+          fi
+          
+          echo "Pushing tag..."
+          if ! git push origin "v${VERSION}"; then
+            echo "ERROR: Failed to push tag"
+            exit 1
+          fi
+          
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          echo "Publishing to crates.io..."
+          if ! cargo publish; then
+            echo "ERROR: Failed to publish to crates.io"
+            exit 1
+          fi
+          echo "Successfully published to crates.io"
+        
+      - name: Verify published version
+        run: |
+          echo "Waiting for crates.io to index the new version..."
+          sleep 15
+          
+          echo "Searching for published crate..."
+          SEARCH_RESULT=$(cargo search shad3 --limit 1)
+          if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to search crates.io"
+            exit 1
+          fi
+          
+          echo "Extracting published version..."
+          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
+          if [ -z "$PUBLISHED_VERSION" ]; then
+            echo "ERROR: Failed to extract published version"
+            exit 1
+          fi
+          
+          echo "Comparing versions..."
+          echo "Expected version: ${VERSION}"
+          echo "Published version: ${PUBLISHED_VERSION}"
+          if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
+            echo "ERROR: Version mismatch"
+            exit 1
+          fi
+          echo "Version verification successful"
+          
+      - name: Download artifacts
+        id: download
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-unknown-*"
+          path: artifacts
+          merge-multiple: true
+        
+      - name: Debug artifacts
+        run: |
+          echo "Listing downloaded artifacts:"
+          ls -R artifacts/
+          echo "Checking for required files:"
+          find artifacts -name "*.tar.gz" -o -name "*.zip"
+          
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Creating GitHub release v${VERSION}..."
+          
+          # First ensure we have artifacts to upload
+          if ! ls artifacts/*.tar.gz artifacts/*.zip >/dev/null 2>&1; then
+            echo "ERROR: No artifacts found to upload"
+            exit 1
+          fi
+          
+          # Create the release
+          if ! gh release create "v${VERSION}" \
+            --title "Release v${VERSION}" \
+            --notes "Release v${VERSION}" \
+            artifacts/*.tar.gz artifacts/*.zip; then
+            echo "ERROR: Failed to create GitHub release"
+            exit 1
+          fi
+          
+          echo "Release created successfully"
+          echo "Verifying release..."
+          if ! gh release view "v${VERSION}"; then
+            echo "ERROR: Failed to verify release"
+            exit 1
+          fi
+          
+          echo "Checking uploaded assets..."
+          gh release view "v${VERSION}" --json assets -q '.assets[].name'
