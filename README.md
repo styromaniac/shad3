@@ -1,7 +1,7 @@
 
 # SHAD3
 
-![SHAD3 logo](SHAD3.png)
+<img src="SHAD3.png"/>
 
 SHAD3 is an application using SHA3-512 to hash entries in a list or multiple lists, typically those made for Pi-hole. This is designed for [SHATTER](https://addons.mozilla.org/en-US/firefox/addon/shatt3r/) and similar applications or addons. Ideally, it serves to maintain the confidentiality of blocked content, which may include exploitative or abusive websites.
 
