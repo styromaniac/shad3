@@ -133,6 +133,6 @@ If you encounter any issues during installation or use, please check:
 ### Notes:
 - **Rust Installation**:
   - For **Linux**, **macOS**, and **Windows**, the **from source** installation one-liners utilize the respective package managers to install Rust and Cargo, ensuring compatibility with the system's package management.
-  - For **Termux**, since `rustup` is not available, Rust and Cargo are installed via the package manager (`pkg`), and the environment is set up accordingly.
+  - For **Termux**, since `rustup` is not available, Rust is installed via the package manager (`pkg`), and the environment is set up accordingly.
 
 ---
