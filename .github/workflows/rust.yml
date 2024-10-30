@@ -216,8 +216,8 @@ jobs:
           name: ${{ matrix.target }}
           path: artifacts/${{ matrix.artifact_name }}
 
-  version-bump:
-    name: Version Bump
+  version-check:
+    name: Version Check
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     needs: [fmt, clippy]
@@ -225,34 +225,36 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Increment Patch Version
-        id: bump_version
+      
+      - name: Verify version integrity
+        id: version_check
         run: |
-          if [[ $(grep '^version = ' Cargo.toml) =~ version\ =\ \"([0-9]+)\.([0-9]+)\.([0-9]+)\" ]]; then
-            MAJOR=${BASH_REMATCH[1]}
-            MINOR=${BASH_REMATCH[2]}
-            PATCH=${BASH_REMATCH[3]}
-            NEW_PATCH=$((PATCH + 1))
-            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
-            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-          else
-            echo "Version pattern not found" && exit 1
-          fi
-      - name: Commit Version Bump
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "github-actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
-          git add Cargo.toml
-          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
-          git push origin main
+          # Get current version from Cargo.toml
+          CURRENT_VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "Current Cargo.toml version: ${CURRENT_VERSION}"
+          
+          # Get latest version from crates.io
+          CRATES_VERSION=$(cargo search shad3 --limit 1 | sed -nE 's/^shad3 = "([^"]+)".*/\1/p')
+          echo "Latest crates.io version: ${CRATES_VERSION}"
+          
+          # Get latest git tag version
+          GIT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          GIT_VERSION=${GIT_VERSION#v}
+          echo "Latest git tag version: ${GIT_VERSION}"
+          
+          # Verify the new version is higher than all existing versions
+          for ver in "$CRATES_VERSION" "$GIT_VERSION"; do
+            if [ -n "$ver" ] && [ "$(echo -e "$ver\n$CURRENT_VERSION" | sort -V | tail -n1)" != "$CURRENT_VERSION" ]; then
+              echo "Error: Current version ${CURRENT_VERSION} is not higher than ${ver}"
+              exit 1
+            fi
+          done
+          
+          echo "VERSION=${CURRENT_VERSION}" >> $GITHUB_ENV
 
   publish:
     name: Publish
-    needs: [check, test, fmt, clippy, build, version-bump]
+    needs: [check, test, fmt, clippy, build, version-check]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -266,16 +268,11 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      - run: cargo install cargo-edit
-      - name: Get current version
-        id: version
-        run: |
-          VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
       - name: Create and push tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           git tag "v${VERSION}"
@@ -284,14 +281,6 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: cargo publish
-      - name: Verify published version
-        run: |
-          sleep 15
-          SEARCH_RESULT=$(cargo search shad3 --limit 1)
-          PUBLISHED_VERSION=$(echo "$SEARCH_RESULT" | sed -nE 's/^[^"]*"//; s/".*//p')
-          if [[ "$PUBLISHED_VERSION" != "${VERSION}" ]]; then
-            echo "Version mismatch" && exit 1
-          fi
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -302,6 +291,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION=$(grep '^version = ' Cargo.toml | sed -E 's/version = "(.*)"/\1/')
           gh release create "v${VERSION}" \
             --title "Release v${VERSION}" \
             --notes "Release v${VERSION}" \
