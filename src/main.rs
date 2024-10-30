@@ -30,10 +30,15 @@ fn create_temp_dir() -> Result<PathBuf> {
 async fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 || args.len() > 3 {
+        let program_name = Path::new(&args[0])
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("shad3");
+
         anyhow::bail!(
             "Usage: {} <blocklist-url-or-path> [output-path]\n\
             Tip: The first argument can be either a URL or a local file path",
-            args[0]
+            program_name
         );
     }
 
@@ -101,7 +106,6 @@ async fn collect_files(input: &str, temp_dir: &Path) -> Result<Vec<String>> {
     if path.exists() {
         let mut files = Vec::new();
         let base_path = path.parent().unwrap_or_else(|| Path::new(""));
-        let _original_filename = path.file_name().unwrap().to_str().unwrap();
         let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let (prefix, number_part) = split_filename_parts(stem);
